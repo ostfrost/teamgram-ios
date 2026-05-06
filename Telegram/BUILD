@@ -46,6 +46,7 @@ load(
     "telegram_bundle_id",
     "telegram_aps_environment",
     "telegram_team_id",
+    "telegram_provisioning_profile_name",
     "telegram_enable_icloud",
     "telegram_enable_siri",
 )
@@ -1704,7 +1705,7 @@ plist_fragment(
 
 local_provisioning_profile(
     name = "Telegram_local_profile",
-    profile_name = "iOS Team Provisioning Profile: {}".format(telegram_bundle_id),
+    profile_name = telegram_provisioning_profile_name,
     team_id = telegram_team_id,
 )
 
@@ -1722,6 +1723,7 @@ ios_application(
     families = ["iphone", "ipad"],
     minimum_os_version = minimum_os_version,
     provisioning_profile = select({
+        "//build-system:ios_sim_arm64": None,
         ":disableProvisioningProfilesSetting": None,
         "//conditions:default": ":Telegram_xcode_profile" if telegram_use_xcode_managed_codesigning else "@build_configuration//provisioning:Telegram.mobileprovision",
     }),

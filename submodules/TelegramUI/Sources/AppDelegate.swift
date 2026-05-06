@@ -45,6 +45,7 @@ import RecaptchaEnterprise
 import NavigationBarImpl
 import ContextUI
 import ContextControllerImpl
+import ObjectiveC
 
 #if canImport(AppCenter)
 import AppCenter
@@ -54,6 +55,68 @@ import AppCenterCrashes
 private let handleVoipNotifications = false
 
 private var testIsLaunched = false
+
+private final class RecaptchaBundleIdentifierOverride {
+    fileprivate static let shared = RecaptchaBundleIdentifierOverride()
+    
+    private let lock = NSLock()
+    private var isInstalled = false
+    private var activeCount = 0
+    private let bundleIdentifier = "ph.telegra.Telegraph"
+    
+    fileprivate static var currentBundleIdentifier: String? {
+        let shared = RecaptchaBundleIdentifierOverride.shared
+        shared.lock.lock()
+        defer {
+            shared.lock.unlock()
+        }
+        return shared.activeCount > 0 ? shared.bundleIdentifier : nil
+    }
+    
+    static func begin() -> () -> Void {
+        let shared = RecaptchaBundleIdentifierOverride.shared
+        shared.installIfNeeded()
+        
+        shared.lock.lock()
+        shared.activeCount += 1
+        shared.lock.unlock()
+        
+        var didEnd = false
+        return {
+            shared.lock.lock()
+            if !didEnd {
+                didEnd = true
+                shared.activeCount = max(0, shared.activeCount - 1)
+            }
+            shared.lock.unlock()
+        }
+    }
+    
+    private func installIfNeeded() {
+        self.lock.lock()
+        if self.isInstalled {
+            self.lock.unlock()
+            return
+        }
+        self.isInstalled = true
+        self.lock.unlock()
+        
+        guard let originalMethod = class_getInstanceMethod(Bundle.self, #selector(getter: Bundle.bundleIdentifier)),
+              let overrideMethod = class_getInstanceMethod(Bundle.self, #selector(getter: Bundle.telegram_recaptchaBundleIdentifier)) else {
+            return
+        }
+        method_exchangeImplementations(originalMethod, overrideMethod)
+    }
+}
+
+private extension Bundle {
+    @objc var telegram_recaptchaBundleIdentifier: String? {
+        if self === Bundle.main, let bundleIdentifier = RecaptchaBundleIdentifierOverride.currentBundleIdentifier {
+            return bundleIdentifier
+        }
+        return self.telegram_recaptchaBundleIdentifier
+    }
+}
 
 private func isKeyboardWindow(window: NSObject) -> Bool {
     let typeName = NSStringFromClass(type(of: window))
@@ -577,7 +640,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                     recaptchaClient = Promise<RecaptchaClient>()
                     self.recaptchaClientsBySiteKey[siteKey] = recaptchaClient
                     
+                    let endBundleIdentifierOverride = RecaptchaBundleIdentifierOverride.begin()
                     Recaptcha.fetchClient(withSiteKey: siteKey) { client, error in
+                        endBundleIdentifierOverride()
                         Queue.mainQueue().async {
                             guard let client else {
                                 Logger.shared.log("App \(self.episodeId)", "RecaptchaClient creation error: \(String(describing: error)).")
@@ -606,7 +671,9 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
                             
                             return EmptyDisposable
                         }
+                        let endBundleIdentifierOverride = RecaptchaBundleIdentifierOverride.begin()
                         recaptchaClient.execute(withAction: recaptchaAction) { token, error in
+                            endBundleIdentifierOverride()
                             if let token {
                                 subscriber.putNext(token)
                                 Logger.shared.log("App \(self.episodeId)", "RecaptchaClient executed successfully")

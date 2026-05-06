@@ -30,6 +30,8 @@ objc_library(
     ]),
     copts = [
         "-Werror",
+        "-Wno-error=enum-enum-conversion",
+        "-Wno-error=enum-float-conversion",
     ],
     includes = [
         "PublicHeaders",

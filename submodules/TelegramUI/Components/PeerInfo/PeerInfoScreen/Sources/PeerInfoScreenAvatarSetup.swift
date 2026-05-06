@@ -1,10 +1,12 @@
 import Foundation
 import UIKit
+import AsyncDisplayKit
 import Display
 import SSignalKit
 import SwiftSignalKit
 import TelegramCore
 import AccountContext
+import TelegramPresentationData
 import MediaEditor
 import MediaEditorScreen
 import CameraScreen
@@ -18,6 +20,64 @@ import PeerAvatarGalleryUI
 import PresentationDataUtils
 import LegacyComponents
 import LegacyMediaPickerUI
+import AvatarIntegration
+
+private final class AvatarDebugRendererController: ViewController {
+    private var rendererController: UIViewController
+    private var rendererFrame: CGRect = .zero
+
+    init(presentationData: PresentationData) {
+        let initialBackend: AvatarRendererBackend = .current
+        self.rendererController = AvatarDebugRendererController.makeRendererController(backend: initialBackend)
+        super.init(navigationBarPresentationData: NavigationBarPresentationData(presentationData: presentationData))
+    }
+
+    required init(coder aDecoder: NSCoder) {
+        preconditionFailure()
+    }
+
+    override func loadDisplayNode() {
+        self.displayNode = ASDisplayNode()
+        self.displayNode.isUserInteractionEnabled = true
+        self.displayNode.backgroundColor = .black
+        self.displayNodeDidLoad()
+    }
+
+    override func displayNodeDidLoad() {
+        super.displayNodeDidLoad()
+
+        self.attachRendererController(self.rendererController)
+    }
+
+    override func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
+        super.containerLayoutUpdated(layout, transition: transition)
+
+        let navigationHeight = self.navigationBar?.frame.maxY ?? 0.0
+        let frame = CGRect(
+            x: 0.0,
+            y: navigationHeight,
+            width: layout.size.width,
+            height: max(0.0, layout.size.height - navigationHeight)
+        )
+        self.rendererFrame = frame
+        transition.updateFrame(view: self.rendererController.view, frame: frame)
+    }
+
+    private static func makeRendererController(backend: AvatarRendererBackend) -> UIViewController {
+        let configuration = AvatarRendererConfiguration(backend: backend)
+        return AvatarIntegrationEntryPoint.makeDebugRendererViewController(configuration: configuration)
+    }
+
+    private func attachRendererController(_ rendererController: UIViewController) {
+        self.addChild(rendererController)
+        rendererController.view.isUserInteractionEnabled = true
+        if !self.rendererFrame.isEmpty {
+            rendererController.view.frame = self.rendererFrame
+        }
+        self.displayNode.view.addSubview(rendererController.view)
+        rendererController.didMove(toParent: self)
+    }
+}
 
 extension PeerInfoScreenImpl {
     func openAvatarForEditing(mode: PeerInfoAvatarEditingMode = .generic, fromGallery: Bool = false, completion: @escaping (UIImage?) -> Void = { _ in }, completedWithUploadingImage: @escaping (UIImage, Signal<PeerInfoAvatarUploadStatus, NoError>) -> UIView? = { _, _ in nil }) {
@@ -28,6 +88,16 @@ extension PeerInfoScreenImpl {
             return
         }
         self.view.endEditing(true)
+
+        if ProcessInfo.processInfo.environment["AVATAR_DEBUG_RENDERER_DISABLED"] != "1" {
+            let controller = AvatarDebugRendererController(presentationData: self.presentationData)
+            if let navigationController = self.navigationController {
+                navigationController.pushViewController(controller, animated: true)
+            } else {
+                self.present(controller, animated: true)
+            }
+            return
+        }
         
         let peerId = self.peerId
         var isForum = false

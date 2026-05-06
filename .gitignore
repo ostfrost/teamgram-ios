@@ -86,4 +86,17 @@ xcode-files
 .bsp/**
 .sourcekit-lsp/**
 /.claude/
+/.codex
+/.codex-*
+/codex-*.md
+/codex-*.txt
+/codex-*.log
+/*.codex.patch
+/*.codex.diff
+/*.codex.tmp
+/build-system/local-dev-config.json
+/bazel-AvatarMessanger
+/bazel-AvatarMessanger/*
 /buildbox/*
+/docs/milestone-*.md
+/submodules/AvatarIntegration/Docs/

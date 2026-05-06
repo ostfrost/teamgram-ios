@@ -1,0 +1,17 @@
+{
+  "avatarId": "baseline-ios-m1",
+  "body": {
+    "height": 1.0,
+    "build": 0.5
+  },
+  "head": {
+    "shape": "neutral",
+    "skinTone": "medium"
+  },
+  "wardrobe": {
+    "top": "debug_plain_tshirt",
+    "bottom": "debug_plain_pants"
+  },
+  "morphs": {},
+  "emotion": "neutral"
+}

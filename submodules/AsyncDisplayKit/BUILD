@@ -16,9 +16,13 @@ objc_library(
     ], allow_empty=True) + private_headers,
     copts = [
         "-Werror",
+        "-Wno-error",
+        "-Wno-thread-safety-analysis",
     ],
     cxxopts = [
         "-Werror",
+        "-Wno-error",
+        "-Wno-thread-safety-analysis",
         "-std=c++17",
     ],
     hdrs = public_headers,
