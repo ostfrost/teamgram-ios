@@ -124,6 +124,48 @@ objc_library(
 )
 
 swift_library(
+    name = "AvatarServiceAPI",
+    module_name = "AvatarServiceAPI",
+    srcs = glob([
+        "Sources/AvatarServiceAPI/**/*.swift",
+    ]),
+    copts = [
+        "-warnings-as-errors",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+swift_library(
+    name = "AvatarAuthClient",
+    module_name = "AvatarAuthClient",
+    srcs = glob([
+        "Sources/AvatarAuthClient/**/*.swift",
+    ]),
+    copts = [
+        "-warnings-as-errors",
+    ],
+    deps = [
+        ":AvatarServiceAPI",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+swift_library(
+    name = "AvatarServiceClient",
+    module_name = "AvatarServiceClient",
+    srcs = glob([
+        "Sources/AvatarServiceClient/**/*.swift",
+    ]),
+    copts = [
+        "-warnings-as-errors",
+    ],
+    deps = [
+        ":AvatarServiceAPI",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+swift_library(
     name = "AvatarIntegration",
     module_name = "AvatarIntegration",
     srcs = [

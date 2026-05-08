@@ -16,6 +16,10 @@ let package = Package(
         .library(
             name: "AvatarServiceClient",
             targets: ["AvatarServiceClient"]
+        ),
+        .library(
+            name: "AvatarAuthClient",
+            targets: ["AvatarAuthClient"]
         )
     ],
     dependencies: [
@@ -23,7 +27,21 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "AvatarServiceAPI",
+            path: "Sources/AvatarServiceAPI"
+        ),
+        .target(
+            name: "AvatarAuthClient",
+            dependencies: [
+                "AvatarServiceAPI"
+            ],
+            path: "Sources/AvatarAuthClient"
+        ),
+        .target(
             name: "AvatarServiceClient",
+            dependencies: [
+                "AvatarServiceAPI"
+            ],
             path: "Sources/AvatarServiceClient"
         ),
         .target(
@@ -40,6 +58,8 @@ let package = Package(
                 "Package.swift",
                 "Sources/AvatarEngine.swift",
                 "Sources/AvatarMetalView.swift",
+                "Sources/AvatarAuthClient",
+                "Sources/AvatarServiceAPI",
                 "Sources/AvatarServiceClient"
             ],
             sources: [
@@ -62,6 +82,8 @@ let package = Package(
             exclude: [
                 "Bridge",
                 "AvatarRepositoryMetalView.swift",
+                "AvatarAuthClient",
+                "AvatarServiceAPI",
                 "AvatarServiceClient",
                 "RepositoryAvatarEngine.swift",
                 "RepositoryAvatarRendererViewController.swift"
@@ -81,6 +103,7 @@ let package = Package(
         .testTarget(
             name: "AvatarServiceClientTests",
             dependencies: [
+                "AvatarAuthClient",
                 "AvatarServiceClient"
             ],
             path: "Tests/AvatarServiceClientTests"

@@ -1,47 +1,133 @@
+@_exported import AvatarServiceAPI
 import Foundation
 
-public struct AvatarServiceConfiguration: Equatable {
-    public var baseURL: URL
-    public var defaultHeaders: [String: String]
+public typealias AvatarServiceConfiguration = AvatarServiceAPIConfiguration
+public typealias AvatarServiceTokenProviding = AvatarBearerTokenProviding
+public typealias AvatarServiceClientError = AvatarServiceAPIError
+public typealias AvatarParametersJSON = [String: AvatarJSONValue]
 
-    public init(baseURL: URL, defaultHeaders: [String: String] = [:]) {
-        self.baseURL = baseURL
-        self.defaultHeaders = defaultHeaders
-    }
-}
-
-public protocol AvatarServiceTokenProviding: AnyObject {
-    func avatarServiceBearerToken() async throws -> String?
+public enum AvatarType: String, Codable, Equatable, Sendable {
+    case human
+    case animal
 }
 
 public protocol AvatarServiceClientProtocol {
-    func getAvatars() async throws -> [AvatarServiceAvatar]
+    func listAvatars() async throws -> [AvatarServiceAvatar]
+    func createAvatar(name: String, type: AvatarType, paramsJson: AvatarParametersJSON?) async throws -> AvatarServiceAvatar
+    func getAvatar(id: Int64) async throws -> AvatarServiceAvatar
+    func updateAvatar(id: Int64, name: String?, type: AvatarType?, paramsJson: AvatarParametersJSON?) async throws -> AvatarServiceAvatar
+    func deleteAvatar(id: Int64) async throws
+    func analyzeAvatar(_ request: AnalyzeAvatarRequest) async throws -> AnalyzeResponse
+    func analyzeAvatarWithImage(_ imageData: Data, fileName: String, mimeType: String) async throws -> AnalyzeResponse
 }
 
-public struct AvatarServiceAvatar: Decodable, Equatable, Sendable {
-    public var id: String
-    public var paramsJSON: String?
-    public var displayName: String?
-    public var updatedAt: String?
+public extension AvatarServiceClientProtocol {
+    func getAvatars() async throws -> [AvatarServiceAvatar] {
+        try await self.listAvatars()
+    }
+}
+
+public struct AvatarServiceAvatar: Codable, Equatable, Sendable {
+    public var id: Int64
+    public var userId: Int64
+    public var name: String
+    public var type: AvatarType
+    public var paramsJson: AvatarParametersJSON
+    public var images: [AvatarImage]?
+    public var createdAt: String
+    public var updatedAt: String
 
     public init(
-        id: String,
-        paramsJSON: String? = nil,
-        displayName: String? = nil,
-        updatedAt: String? = nil
+        id: Int64,
+        userId: Int64,
+        name: String,
+        type: AvatarType,
+        paramsJson: AvatarParametersJSON = [:],
+        images: [AvatarImage]? = nil,
+        createdAt: String,
+        updatedAt: String
     ) {
         self.id = id
-        self.paramsJSON = paramsJSON
-        self.displayName = displayName
+        self.userId = userId
+        self.name = name
+        self.type = type
+        self.paramsJson = paramsJson
+        self.images = images
+        self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
 }
 
-public enum AvatarServiceClientError: Error, Equatable {
-    case invalidBaseURL
-    case invalidResponse
-    case unexpectedStatusCode(Int)
-    case decodingFailed(String)
+public struct AvatarImage: Codable, Equatable, Sendable {
+    public var id: Int64
+    public var avatarId: Int64
+    public var kind: String
+    public var s3Key: String
+    public var width: Int
+    public var height: Int
+    public var createdAt: String
+}
+
+public struct AnalyzeAvatarRequest: Codable, Equatable, Sendable {
+    public var landmarks: [CanonicalLandmark]
+    public var morphs: [String: Double]
+    public var colors: AvatarAnalysisColors
+    public var confidence: Double?
+    public var platform: String?
+    public var clientLatencyMs: Int?
+
+    public init(
+        landmarks: [CanonicalLandmark],
+        morphs: [String: Double],
+        colors: AvatarAnalysisColors,
+        confidence: Double? = nil,
+        platform: String? = "ios",
+        clientLatencyMs: Int? = nil
+    ) {
+        self.landmarks = landmarks
+        self.morphs = morphs
+        self.colors = colors
+        self.confidence = confidence
+        self.platform = platform
+        self.clientLatencyMs = clientLatencyMs
+    }
+}
+
+public struct CanonicalLandmark: Codable, Equatable, Sendable {
+    public var name: String
+    public var x: Double
+    public var y: Double
+
+    public init(name: String, x: Double, y: Double) {
+        self.name = name
+        self.x = x
+        self.y = y
+    }
+}
+
+public struct AvatarAnalysisColors: Codable, Equatable, Sendable {
+    public var skin: String
+    public var hair: String
+    public var eye: String
+
+    public init(skin: String, hair: String, eye: String) {
+        self.skin = skin
+        self.hair = hair
+        self.eye = eye
+    }
+}
+
+public struct AnalyzeResponse: Codable, Equatable, Sendable {
+    public var preset: AvatarPreset
+    public var confidence: Double
+    public var analyzer: String
+}
+
+public struct AvatarPreset: Codable, Equatable, Sendable {
+    public var type: AvatarType
+    public var morphs: [String: Double]
+    public var colors: [String: String]
+    public var suggestedHairStyleId: String?
 }
 
 public final class AvatarServiceHTTPClient: AvatarServiceClientProtocol {
@@ -49,88 +135,84 @@ public final class AvatarServiceHTTPClient: AvatarServiceClientProtocol {
         var avatars: [AvatarServiceAvatar]
     }
 
-    private let configuration: AvatarServiceConfiguration
-    private let tokenProvider: AvatarServiceTokenProviding?
-    private let urlSession: URLSession
-    private let decoder: JSONDecoder
+    private struct CreateAvatarRequest: Encodable {
+        var name: String
+        var type: AvatarType
+        var paramsJson: AvatarParametersJSON?
+    }
+
+    private struct UpdateAvatarRequest: Encodable {
+        var name: String?
+        var type: AvatarType?
+        var paramsJson: AvatarParametersJSON?
+    }
+
+    private let api: AvatarServiceAPIClient
 
     public init(
         configuration: AvatarServiceConfiguration,
         tokenProvider: AvatarServiceTokenProviding? = nil,
-        urlSession: URLSession = .shared,
-        decoder: JSONDecoder = JSONDecoder()
+        urlSession: URLSession = .shared
     ) {
-        self.configuration = configuration
-        self.tokenProvider = tokenProvider
-        self.urlSession = urlSession
-        self.decoder = decoder
+        self.api = AvatarServiceAPIClient(
+            configuration: configuration,
+            tokenProvider: tokenProvider,
+            urlSession: urlSession
+        )
     }
 
-    public func getAvatars() async throws -> [AvatarServiceAvatar] {
-        var request = try await self.makeRequest(path: "avatars")
-        request.httpMethod = "GET"
-
-        let (data, response) = try await self.perform(request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AvatarServiceClientError.invalidResponse
-        }
-        guard 200 ..< 300 ~= httpResponse.statusCode else {
-            throw AvatarServiceClientError.unexpectedStatusCode(httpResponse.statusCode)
-        }
-
-        return try self.decodeAvatarList(from: data)
+    public func listAvatars() async throws -> [AvatarServiceAvatar] {
+        let envelope: AvatarListEnvelope = try await self.api.get("avatars")
+        return envelope.avatars
     }
 
-    private func makeRequest(path: String) async throws -> URLRequest {
-        guard var components = URLComponents(url: self.configuration.baseURL, resolvingAgainstBaseURL: false) else {
-            throw AvatarServiceClientError.invalidBaseURL
-        }
-
-        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        components.path = "/" + ([basePath, path].filter { !$0.isEmpty }.joined(separator: "/"))
-
-        guard let url = components.url else {
-            throw AvatarServiceClientError.invalidBaseURL
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        for (name, value) in self.configuration.defaultHeaders {
-            request.setValue(value, forHTTPHeaderField: name)
-        }
-        if let bearerToken = try await self.tokenProvider?.avatarServiceBearerToken(), !bearerToken.isEmpty {
-            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
-        }
-
-        return request
+    public func createAvatar(
+        name: String,
+        type: AvatarType,
+        paramsJson: AvatarParametersJSON? = nil
+    ) async throws -> AvatarServiceAvatar {
+        try await self.api.post(
+            "avatars",
+            body: CreateAvatarRequest(name: name, type: type, paramsJson: paramsJson)
+        )
     }
 
-    private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        try await withCheckedThrowingContinuation { continuation in
-            let task = self.urlSession.dataTask(with: request) { data, response, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                guard let data, let response else {
-                    continuation.resume(throwing: AvatarServiceClientError.invalidResponse)
-                    return
-                }
-                continuation.resume(returning: (data, response))
-            }
-            task.resume()
-        }
+    public func getAvatar(id: Int64) async throws -> AvatarServiceAvatar {
+        try await self.api.get("avatars/\(id)")
     }
 
-    private func decodeAvatarList(from data: Data) throws -> [AvatarServiceAvatar] {
-        do {
-            return try self.decoder.decode([AvatarServiceAvatar].self, from: data)
-        } catch {
-            do {
-                return try self.decoder.decode(AvatarListEnvelope.self, from: data).avatars
-            } catch {
-                throw AvatarServiceClientError.decodingFailed(String(describing: error))
-            }
-        }
+    public func updateAvatar(
+        id: Int64,
+        name: String? = nil,
+        type: AvatarType? = nil,
+        paramsJson: AvatarParametersJSON? = nil
+    ) async throws -> AvatarServiceAvatar {
+        try await self.api.put(
+            "avatars/\(id)",
+            body: UpdateAvatarRequest(name: name, type: type, paramsJson: paramsJson)
+        )
+    }
+
+    public func deleteAvatar(id: Int64) async throws {
+        try await self.api.delete("avatars/\(id)")
+    }
+
+    public func analyzeAvatar(_ request: AnalyzeAvatarRequest) async throws -> AnalyzeResponse {
+        try await self.api.post("avatars/analyze", body: request)
+    }
+
+    public func analyzeAvatarWithImage(
+        _ imageData: Data,
+        fileName: String,
+        mimeType: String
+    ) async throws -> AnalyzeResponse {
+        try await self.api.postMultipart(
+            "avatars/analyze/with-image",
+            fieldName: "image",
+            fileName: fileName,
+            mimeType: mimeType,
+            data: imageData,
+            timeout: 5.0
+        )
     }
 }
