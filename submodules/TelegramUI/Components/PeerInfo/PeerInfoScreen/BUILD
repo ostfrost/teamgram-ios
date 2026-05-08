@@ -19,7 +19,7 @@ swift_library(
         "//submodules/AppBundle",
         "//submodules/AsyncDisplayKit",
         "//submodules/TelegramUI/Components/AvatarEditorScreen",
-        "//submodules/AvatarIntegration",
+        "//avatar-module-ios:AvatarIntegration",
         "//submodules/AvatarNode",
         "//submodules/TelegramUI/Components/Stories/AvatarStoryIndicatorComponent",
         "//submodules/AvatarVideoNode",

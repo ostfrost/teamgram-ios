@@ -100,3 +100,6 @@ xcode-files
 /buildbox/*
 /docs/milestone-*.md
 /submodules/AvatarIntegration/Docs/
+/avatar-module-ios/
+/submodules/AvatarIntegration/
+/submodules/avatar-engine/
