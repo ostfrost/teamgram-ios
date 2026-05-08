@@ -90,10 +90,17 @@ let package = Package(
             ],
             sources: [
                 "AvatarEngine.swift",
+                "AvatarDesignSystem.swift",
+                "AvatarFlowViewController.swift",
                 "AvatarIntegrationEntryPoint.swift",
+                "AvatarCreationIntroView.swift",
+                "AvatarCreationIntroViewController.swift",
                 "AvatarMetalView.swift",
                 "AvatarModelResource.swift",
                 "AvatarRendererViewController.swift",
+                "AvatarResourceBundle.swift",
+                "AvatarSelfieIntroView.swift",
+                "AvatarSelfieIntroViewController.swift",
                 "AvatarSnapshotTesting.swift",
             ],
             resources: [

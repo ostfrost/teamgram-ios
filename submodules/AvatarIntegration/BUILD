@@ -15,6 +15,14 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+filegroup(
+    name = "AvatarIntegrationAssetResources",
+    srcs = glob([
+        "Sources/Resources/Assets.xcassets/**",
+    ]),
+    visibility = ["//visibility:public"],
+)
+
 plist_fragment(
     name = "AvatarIntegrationBundleInfoPlist",
     extension = "plist",
@@ -35,6 +43,7 @@ apple_resource_bundle(
         ":AvatarIntegrationBundleInfoPlist",
     ],
     resources = [
+        ":AvatarIntegrationAssetResources",
         ":AvatarIntegrationModelResources",
     ],
 )
@@ -170,10 +179,17 @@ swift_library(
     module_name = "AvatarIntegration",
     srcs = [
         "Sources/AvatarEngine.swift",
+        "Sources/AvatarDesignSystem.swift",
+        "Sources/AvatarFlowViewController.swift",
         "Sources/AvatarIntegrationEntryPoint.swift",
+        "Sources/AvatarCreationIntroView.swift",
+        "Sources/AvatarCreationIntroViewController.swift",
         "Sources/AvatarMetalView.swift",
         "Sources/AvatarModelResource.swift",
         "Sources/AvatarRendererViewController.swift",
+        "Sources/AvatarResourceBundle.swift",
+        "Sources/AvatarSelfieIntroView.swift",
+        "Sources/AvatarSelfieIntroViewController.swift",
     ],
     copts = [
         "-warnings-as-errors",

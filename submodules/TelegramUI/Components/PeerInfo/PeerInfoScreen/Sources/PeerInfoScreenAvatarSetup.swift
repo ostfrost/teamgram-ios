@@ -22,14 +22,14 @@ import LegacyComponents
 import LegacyMediaPickerUI
 import AvatarIntegration
 
-private final class AvatarDebugRendererController: ViewController {
-    private var rendererController: UIViewController
-    private var rendererFrame: CGRect = .zero
+private final class AvatarSelfieIntroHostController: ViewController {
+    private var avatarController: UIViewController?
+    private var avatarFrame: CGRect = .zero
 
     init(presentationData: PresentationData) {
-        let initialBackend: AvatarRendererBackend = .current
-        self.rendererController = AvatarDebugRendererController.makeRendererController(backend: initialBackend)
-        super.init(navigationBarPresentationData: NavigationBarPresentationData(presentationData: presentationData))
+        super.init(navigationBarPresentationData: nil)
+        self.statusBar.statusBarStyle = presentationData.theme.rootController.statusBarStyle.style
+        self.avatarController = self.makeAvatarController()
     }
 
     required init(coder aDecoder: NSCoder) {
@@ -46,36 +46,47 @@ private final class AvatarDebugRendererController: ViewController {
     override func displayNodeDidLoad() {
         super.displayNodeDidLoad()
 
-        self.attachRendererController(self.rendererController)
+        if let avatarController = self.avatarController {
+            self.attachAvatarController(avatarController)
+        }
     }
 
     override func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
         super.containerLayoutUpdated(layout, transition: transition)
 
-        let navigationHeight = self.navigationBar?.frame.maxY ?? 0.0
+        let statusBarHeight = layout.statusBarHeight ?? 0.0
         let frame = CGRect(
             x: 0.0,
-            y: navigationHeight,
+            y: statusBarHeight,
             width: layout.size.width,
-            height: max(0.0, layout.size.height - navigationHeight)
+            height: max(0.0, layout.size.height - statusBarHeight)
         )
-        self.rendererFrame = frame
-        transition.updateFrame(view: self.rendererController.view, frame: frame)
-    }
-
-    private static func makeRendererController(backend: AvatarRendererBackend) -> UIViewController {
-        let configuration = AvatarRendererConfiguration(backend: backend)
-        return AvatarIntegrationEntryPoint.makeDebugRendererViewController(configuration: configuration)
-    }
-
-    private func attachRendererController(_ rendererController: UIViewController) {
-        self.addChild(rendererController)
-        rendererController.view.isUserInteractionEnabled = true
-        if !self.rendererFrame.isEmpty {
-            rendererController.view.frame = self.rendererFrame
+        self.avatarFrame = frame
+        if let avatarController = self.avatarController {
+            transition.updateFrame(view: avatarController.view, frame: frame)
         }
-        self.displayNode.view.addSubview(rendererController.view)
-        rendererController.didMove(toParent: self)
+    }
+
+    private func makeAvatarController() -> UIViewController {
+        return AvatarIntegrationEntryPoint.makeAvatarFlowViewController(
+            onClose: { [weak self] in
+                if let navigationController = self?.navigationController {
+                    navigationController.popViewController(animated: true)
+                } else {
+                    self?.dismiss()
+                }
+            }
+        )
+    }
+
+    private func attachAvatarController(_ avatarController: UIViewController) {
+        self.addChild(avatarController)
+        avatarController.view.isUserInteractionEnabled = true
+        if !self.avatarFrame.isEmpty {
+            avatarController.view.frame = self.avatarFrame
+        }
+        self.displayNode.view.addSubview(avatarController.view)
+        avatarController.didMove(toParent: self)
     }
 }
 
@@ -89,8 +100,8 @@ extension PeerInfoScreenImpl {
         }
         self.view.endEditing(true)
 
-        if ProcessInfo.processInfo.environment["AVATAR_DEBUG_RENDERER_DISABLED"] != "1" {
-            let controller = AvatarDebugRendererController(presentationData: self.presentationData)
+        if ProcessInfo.processInfo.environment["AVATAR_SELFIE_INTRO_DISABLED"] != "1" {
+            let controller = AvatarSelfieIntroHostController(presentationData: self.presentationData)
             if let navigationController = self.navigationController {
                 navigationController.pushViewController(controller, animated: true)
             } else {
