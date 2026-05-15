@@ -22,74 +22,6 @@ import LegacyComponents
 import LegacyMediaPickerUI
 import AvatarIntegration
 
-private final class AvatarSelfieIntroHostController: ViewController {
-    private var avatarController: UIViewController?
-    private var avatarFrame: CGRect = .zero
-
-    init(presentationData: PresentationData) {
-        super.init(navigationBarPresentationData: nil)
-        self.statusBar.statusBarStyle = presentationData.theme.rootController.statusBarStyle.style
-        self.avatarController = self.makeAvatarController()
-    }
-
-    required init(coder aDecoder: NSCoder) {
-        preconditionFailure()
-    }
-
-    override func loadDisplayNode() {
-        self.displayNode = ASDisplayNode()
-        self.displayNode.isUserInteractionEnabled = true
-        self.displayNode.backgroundColor = .black
-        self.displayNodeDidLoad()
-    }
-
-    override func displayNodeDidLoad() {
-        super.displayNodeDidLoad()
-
-        if let avatarController = self.avatarController {
-            self.attachAvatarController(avatarController)
-        }
-    }
-
-    override func containerLayoutUpdated(_ layout: ContainerViewLayout, transition: ContainedViewLayoutTransition) {
-        super.containerLayoutUpdated(layout, transition: transition)
-
-        let statusBarHeight = layout.statusBarHeight ?? 0.0
-        let frame = CGRect(
-            x: 0.0,
-            y: statusBarHeight,
-            width: layout.size.width,
-            height: max(0.0, layout.size.height - statusBarHeight)
-        )
-        self.avatarFrame = frame
-        if let avatarController = self.avatarController {
-            transition.updateFrame(view: avatarController.view, frame: frame)
-        }
-    }
-
-    private func makeAvatarController() -> UIViewController {
-        return AvatarIntegrationEntryPoint.makeAvatarFlowViewController(
-            onClose: { [weak self] in
-                if let navigationController = self?.navigationController {
-                    navigationController.popViewController(animated: true)
-                } else {
-                    self?.dismiss()
-                }
-            }
-        )
-    }
-
-    private func attachAvatarController(_ avatarController: UIViewController) {
-        self.addChild(avatarController)
-        avatarController.view.isUserInteractionEnabled = true
-        if !self.avatarFrame.isEmpty {
-            avatarController.view.frame = self.avatarFrame
-        }
-        self.displayNode.view.addSubview(avatarController.view)
-        avatarController.didMove(toParent: self)
-    }
-}
-
 extension PeerInfoScreenImpl {
     func openAvatarForEditing(mode: PeerInfoAvatarEditingMode = .generic, fromGallery: Bool = false, completion: @escaping (UIImage?) -> Void = { _ in }, completedWithUploadingImage: @escaping (UIImage, Signal<PeerInfoAvatarUploadStatus, NoError>) -> UIView? = { _, _ in nil }) {
         guard !self.presentAccountFrozenInfoIfNeeded() else {
@@ -101,12 +33,7 @@ extension PeerInfoScreenImpl {
         self.view.endEditing(true)
 
         if ProcessInfo.processInfo.environment["AVATAR_SELFIE_INTRO_DISABLED"] != "1" {
-            let controller = AvatarSelfieIntroHostController(presentationData: self.presentationData)
-            if let navigationController = self.navigationController {
-                navigationController.pushViewController(controller, animated: true)
-            } else {
-                self.present(controller, animated: true)
-            }
+            AvatarIntegrationEntryPoint.presentAvatarFlow(from: self)
             return
         }
         
