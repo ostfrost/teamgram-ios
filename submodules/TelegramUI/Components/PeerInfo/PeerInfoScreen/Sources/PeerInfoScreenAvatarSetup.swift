@@ -33,7 +33,13 @@ extension PeerInfoScreenImpl {
         self.view.endEditing(true)
 
         if ProcessInfo.processInfo.environment["AVATAR_SELFIE_INTRO_DISABLED"] != "1" {
-            AvatarIntegrationEntryPoint.presentAvatarFlow(from: self)
+            AvatarIntegrationEntryPoint.presentAvatarFlow(
+                from: self,
+                onAvatarCreated: { [weak self] result in
+                    self?.updateProfilePhoto(result.image, mode: mode, uploadStatus: nil)
+                    completion(result.image)
+                }
+            )
             return
         }
         
