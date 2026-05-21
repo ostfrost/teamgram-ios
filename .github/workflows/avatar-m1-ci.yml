@@ -1,0 +1,95 @@
+name: Teamgram iOS Fork Build
+
+on:
+  pull_request:
+    branches:
+      - dev-avatar
+      - master
+  push:
+    branches:
+      - dev-avatar
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: avatar-m1-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BAZEL: build-input/bazel-8.4.2-darwin-arm64
+  BAZEL_USER_ROOT: /private/var/tmp/_bazel_avatar_m1_ci
+  AVATAR_VERIFY_HOME: /tmp
+  CLANG_MODULE_CACHE_PATH: /tmp/avatarintegration-clang-cache
+  DERIVED_DATA_PATH: /tmp/AvatarIntegrationDerivedData
+
+jobs:
+  avatar-module:
+    name: Avatar module verify
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Select requested Xcode when available
+        run: |
+          set -euo pipefail
+          XCODE_VERSION="$(python3 -c 'import json; print(json.load(open("versions.json"))["xcode"])')"
+          XCODE_PATH="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          if [ -d "$XCODE_PATH" ]; then
+            sudo xcode-select -s "$XCODE_PATH"
+          else
+            echo "::warning::Requested Xcode ${XCODE_VERSION} was not found; using the runner default."
+          fi
+          xcodebuild -version
+
+      - name: Verify AvatarIntegration package
+        run: avatar-module-ios/Scripts/verify.sh
+
+      - name: Build AvatarIntegration with Bazel for simulator
+        run: |
+          set -euo pipefail
+          "$BAZEL" --bazel_user_root="$BAZEL_USER_ROOT" build //avatar-module-ios:AvatarIntegration --cpu=ios_sim_arm64
+
+      - name: Build AvatarIntegration with Bazel for device
+        run: |
+          set -euo pipefail
+          "$BAZEL" --bazel_user_root="$BAZEL_USER_ROOT" build //avatar-module-ios:AvatarIntegration --cpu=ios_arm64
+
+  teamgram-host:
+    name: Teamgram host simulator build
+    runs-on: macos-latest
+    timeout-minutes: 120
+    needs: avatar-module
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Select requested Xcode when available
+        run: |
+          set -euo pipefail
+          XCODE_VERSION="$(python3 -c 'import json; print(json.load(open("versions.json"))["xcode"])')"
+          XCODE_PATH="/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          if [ -d "$XCODE_PATH" ]; then
+            sudo xcode-select -s "$XCODE_PATH"
+          else
+            echo "::warning::Requested Xcode ${XCODE_VERSION} was not found; using the runner default."
+          fi
+          xcodebuild -version
+
+      - name: Build Teamgram host app with AvatarIntegration
+        run: |
+          set -euo pipefail
+          "$BAZEL" \
+            --bazel_user_root="$BAZEL_USER_ROOT" \
+            --bazelrc=.bazelrc \
+            --bazelrc=xcodeproj.bazelrc \
+            build //Telegram:Telegram --cpu=ios_sim_arm64
