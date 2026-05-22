@@ -1,4 +1,4 @@
-name: Teamgram iOS Fork Build
+name: Telegram iOS avatar integration build
 
 on:
   pull_request:
@@ -12,12 +12,15 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: avatar-m1-ci-${{ github.ref }}
+  group: telegram-ios-avatar-integration-build-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 env:
   BAZEL: build-input/bazel-8.4.2-darwin-arm64
-  BAZEL_USER_ROOT: /private/var/tmp/_bazel_avatar_m1_ci
+  BAZEL_USER_ROOT: /private/var/tmp/_bazel_avatar_module_integration_checks_ci
   AVATAR_VERIFY_HOME: /tmp
   CLANG_MODULE_CACHE_PATH: /tmp/avatarintegration-clang-cache
   DERIVED_DATA_PATH: /tmp/AvatarIntegrationDerivedData
@@ -32,8 +35,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout submodules
+        env:
+          AVATAR_SUBMODULES_TOKEN: ${{ secrets.AVATAR_SUBMODULES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AVATAR_SUBMODULES_TOKEN:-}" ]; then
+            echo "::error::AVATAR_SUBMODULES_TOKEN secret is required to checkout private GitHub submodules."
+            exit 1
+          fi
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="url.https://x-access-token:${AVATAR_SUBMODULES_TOKEN}@github.com/.insteadOf"
+          export GIT_CONFIG_VALUE_0="https://github.com/"
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Select requested Xcode when available
         run: |
@@ -70,8 +88,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout submodules
+        env:
+          AVATAR_SUBMODULES_TOKEN: ${{ secrets.AVATAR_SUBMODULES_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${AVATAR_SUBMODULES_TOKEN:-}" ]; then
+            echo "::error::AVATAR_SUBMODULES_TOKEN secret is required to checkout private GitHub submodules."
+            exit 1
+          fi
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="url.https://x-access-token:${AVATAR_SUBMODULES_TOKEN}@github.com/.insteadOf"
+          export GIT_CONFIG_VALUE_0="https://github.com/"
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Select requested Xcode when available
         run: |
