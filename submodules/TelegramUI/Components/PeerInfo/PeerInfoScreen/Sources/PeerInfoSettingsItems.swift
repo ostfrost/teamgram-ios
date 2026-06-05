@@ -65,17 +65,25 @@ func settingsItems(data: PeerInfoScreenData?, context: AccountContext, presentat
             interaction.openSettings(.emojiStatus)
         }))
         
-        items[.edit]!.append(PeerInfoScreenActionItem(id: 1, text: presentationData.strings.PeerInfo_ChangeProfileColor, icon: UIImage(bundleImageName: "Premium/BoostPerk/CoverColor"), action: {
+        items[.edit]!.append(PeerInfoScreenActionItem(id: 1, text: presentationData.strings.Settings_Avatar, iconSignal: .single(UIImage(bundleImageName: "Settings/AvatarCabinet")), action: {
+            interaction.openSettings(.avatarModule)
+        }))
+        
+        items[.edit]!.append(PeerInfoScreenActionItem(id: 2, text: presentationData.strings.PeerInfo_ChangeProfileColor, icon: UIImage(bundleImageName: "Premium/BoostPerk/CoverColor"), action: {
             interaction.openSettings(.profileColor)
+        }))
+    } else {
+        items[.edit]!.append(PeerInfoScreenActionItem(id: 1, text: presentationData.strings.Settings_Avatar, iconSignal: .single(UIImage(bundleImageName: "Settings/AvatarCabinet")), action: {
+            interaction.openSettings(.avatarModule)
         }))
     }
     
-    items[.edit]!.append(PeerInfoScreenActionItem(id: 2, text: setPhotoTitle, icon: UIImage(bundleImageName: "Settings/SetAvatar"), action: {
+    items[.edit]!.append(PeerInfoScreenActionItem(id: 3, text: setPhotoTitle, icon: UIImage(bundleImageName: "Settings/SetAvatar"), action: {
         interaction.openSettings(.avatar)
     }))
     
     if let peer = data.peer, (peer.addressName ?? "").isEmpty {
-        items[.edit]!.append(PeerInfoScreenActionItem(id: 3, text: presentationData.strings.Settings_SetUsername, icon: UIImage(bundleImageName: "Settings/SetUsername"), action: {
+        items[.edit]!.append(PeerInfoScreenActionItem(id: 4, text: presentationData.strings.Settings_SetUsername, icon: UIImage(bundleImageName: "Settings/SetUsername"), action: {
             interaction.openSettings(.username)
         }))
     }

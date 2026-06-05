@@ -156,6 +156,7 @@ enum PeerInfoContextSubject {
 
 enum PeerInfoSettingsSection {
     case avatar
+    case avatarModule
     case edit
     case proxy
     case stories

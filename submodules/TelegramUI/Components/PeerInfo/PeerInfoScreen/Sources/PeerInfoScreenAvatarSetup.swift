@@ -23,6 +23,26 @@ import LegacyMediaPickerUI
 import AvatarIntegration
 
 extension PeerInfoScreenImpl {
+    
+    func openAvatarModuleForProfilePhoto(mode: PeerInfoAvatarEditingMode = .generic, completion: @escaping (UIImage?) -> Void = { _ in }) {
+        guard !self.presentAccountFrozenInfoIfNeeded() else {
+            return
+        }
+        guard let data = self.controllerNode.data, let peer = data.peer, mode != .generic || canEditPeerInfo(context: self.context, peer: peer, chatLocation: self.chatLocation, threadData: data.threadData) else {
+            return
+        }
+        self.view.endEditing(true)
+        
+        AvatarIntegrationEntryPoint.presentAvatarFlow(
+            from: self,
+            localeIdentifier: self.presentationData.strings.baseLanguageCode,
+            onAvatarCreated: { [weak self] result in
+                self?.updateProfilePhoto(result.image, mode: mode, uploadStatus: nil)
+                completion(result.image)
+            }
+        )
+    }
+    
     func openAvatarForEditing(mode: PeerInfoAvatarEditingMode = .generic, fromGallery: Bool = false, completion: @escaping (UIImage?) -> Void = { _ in }, completedWithUploadingImage: @escaping (UIImage, Signal<PeerInfoAvatarUploadStatus, NoError>) -> UIView? = { _, _ in nil }) {
         guard !self.presentAccountFrozenInfoIfNeeded() else {
             return
@@ -31,18 +51,6 @@ extension PeerInfoScreenImpl {
             return
         }
         self.view.endEditing(true)
-
-        if ProcessInfo.processInfo.environment["AVATAR_SELFIE_INTRO_DISABLED"] != "1" {
-            AvatarIntegrationEntryPoint.presentAvatarFlow(
-                from: self,
-                localeIdentifier: self.presentationData.strings.baseLanguageCode,
-                onAvatarCreated: { [weak self] result in
-                    self?.updateProfilePhoto(result.image, mode: mode, uploadStatus: nil)
-                    completion(result.image)
-                }
-            )
-            return
-        }
         
         let peerId = self.peerId
         var isForum = false

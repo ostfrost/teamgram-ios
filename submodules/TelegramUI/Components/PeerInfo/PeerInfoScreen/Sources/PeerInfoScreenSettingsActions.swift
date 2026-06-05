@@ -47,6 +47,8 @@ extension PeerInfoScreenNode {
         switch section {
         case .avatar:
             self.controller?.openAvatarForEditing()
+        case .avatarModule:
+            self.controller?.openAvatarModuleForProfilePhoto()
         case .edit:
             self.headerNode.navigationButtonContainer.performAction?(.edit, nil, nil)
         case .proxy:

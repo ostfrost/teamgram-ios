@@ -146,6 +146,8 @@ genrule(
 
 minimum_os_version = "13.0"
 
+application_name = "Avatar Messenger App"
+
 notificationServiceExtensionVersion = "v1"
 
 empty_languages = [
@@ -602,8 +604,10 @@ plist_fragment(
     template =
     """
     <key>CFBundleDisplayName</key>
-    <string>Teamgram</string>
-    """
+    <string>{application_name}</string>
+    """.format(
+        application_name = application_name,
+    )
 )
 
 plist_fragment(
@@ -1541,11 +1545,11 @@ plist_fragment(
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Teamgram</string>
+    <string>{application_name}</string>
     <key>CFBundleIdentifier</key>
     <string>{telegram_bundle_id}</string>
     <key>CFBundleName</key>
-    <string>Teamgram</string>
+    <string>{application_name}</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleSignature</key>
@@ -1599,17 +1603,17 @@ plist_fragment(
     <key>NSCameraUsageDescription</key>
     <string>We need this so that you can take and share photos and videos.</string>
     <key>NSContactsUsageDescription</key>
-    <string>Teamgram stores your contacts heavily encrypted in the cloud to let you connect with your friends across all your devices.</string>
+    <string>{application_name} stores your contacts heavily encrypted in the cloud to let you connect with your friends across all your devices.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>You can use Face ID to unlock the app.</string>
     <key>NSLocationAlwaysUsageDescription</key>
-    <string>When you send your location to your friends, Teamgram needs access to show them a map. You also need this to send locations from an Apple Watch.</string>
+    <string>When you send your location to your friends, {application_name} needs access to show them a map. You also need this to send locations from an Apple Watch.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>When you send your location to your friends, Teamgram needs access to show them a map.</string>
+    <string>When you send your location to your friends, {application_name} needs access to show them a map.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>We need this so that you can record and share voice messages and videos with sound.</string>
     <key>NSMotionUsageDescription</key>
-    <string>When you send your location to your friends, Teamgram needs access to show them a map.</string>
+    <string>When you send your location to your friends, {application_name} needs access to show them a map.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>We need this so that you can share photos and videos from your photo library.</string>
     <key>NSPhotoLibraryUsageDescription</key>
@@ -1699,6 +1703,7 @@ plist_fragment(
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
     """.format(
+        application_name = application_name,
         telegram_bundle_id = telegram_bundle_id,
     )
 )
@@ -1717,9 +1722,11 @@ xcode_provisioning_profile(
 
 ios_application(
     name = "Telegram",
+    bundle_name = application_name,
     bundle_id = "{telegram_bundle_id}".format(
         telegram_bundle_id = telegram_bundle_id,
     ),
+    executable_name = "Telegram",
     families = ["iphone", "ipad"],
     minimum_os_version = minimum_os_version,
     provisioning_profile = select({

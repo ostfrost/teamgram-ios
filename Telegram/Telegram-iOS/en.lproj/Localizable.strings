@@ -746,6 +746,7 @@
 
 // Settings
 "Settings.SetProfilePhoto" = "Set Profile Photo";
+"Settings.Avatar" = "Avatar";
 "Settings.Logout" = "Log Out";
 "Settings.Title" = "Settings";
 "Settings.NotificationsAndSounds" = "Notifications and Sounds";

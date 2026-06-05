@@ -215,6 +215,14 @@ class BazelCommandLine:
             '--define=telegramVersion={}'.format(self.build_environment.app_version)
         ]
 
+    def get_disk_cache_arguments(self):
+        return [
+            '--disk_cache={path}'.format(path=self.cache_dir),
+            '--experimental_disk_cache_gc_max_size=50G',
+            '--experimental_disk_cache_gc_max_age=21d',
+            '--experimental_disk_cache_gc_idle_delay=5m',
+        ]
+
     def get_project_generation_arguments(self):
         combined_arguments = []
         combined_arguments += self.common_args
@@ -227,9 +235,7 @@ class BazelCommandLine:
                 '--experimental_remote_downloader={}'.format(self.remote_cache)
             ]
         elif self.cache_dir is not None:
-            combined_arguments += [
-                '--disk_cache={path}'.format(path=self.cache_dir)
-            ]
+            combined_arguments += self.get_disk_cache_arguments()
 
         if self.continue_on_error:
             combined_arguments += ['--keep_going']
@@ -288,9 +294,7 @@ class BazelCommandLine:
                 '--experimental_remote_downloader={}'.format(self.remote_cache)
             ]
         elif self.cache_dir is not None:
-            combined_arguments += [
-                '--disk_cache={path}'.format(path=self.cache_dir)
-            ]
+            combined_arguments += self.get_disk_cache_arguments()
 
         combined_arguments += self.configuration_args
         if self.profile_swift:
@@ -323,9 +327,7 @@ class BazelCommandLine:
                 '--experimental_remote_downloader={}'.format(self.remote_cache)
             ]
         elif self.cache_dir is not None:
-            combined_arguments += [
-                '--disk_cache={path}'.format(path=self.cache_dir)
-            ]
+            combined_arguments += self.get_disk_cache_arguments()
 
         combined_arguments += self.configuration_args
 
@@ -353,9 +355,7 @@ class BazelCommandLine:
                 '--experimental_remote_downloader={}'.format(self.remote_cache)
             ]
         elif self.cache_dir is not None:
-            combined_arguments += [
-                '--disk_cache={path}'.format(path=self.cache_dir)
-            ]
+            combined_arguments += self.get_disk_cache_arguments()
 
         # Add user-provided query arguments
         combined_arguments += query_args
@@ -396,9 +396,7 @@ class BazelCommandLine:
                 '--experimental_remote_downloader={}'.format(self.remote_cache)
             ]
         elif self.cache_dir is not None:
-            combined_arguments += [
-                '--disk_cache={path}'.format(path=self.cache_dir)
-            ]
+            combined_arguments += self.get_disk_cache_arguments()
 
         combined_arguments += self.configuration_args
 
