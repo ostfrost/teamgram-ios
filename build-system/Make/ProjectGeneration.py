@@ -93,20 +93,24 @@ def configure_app_store_archive_for_generated_project(base_path, xcodeproj_path,
 
     def update_build_settings(match):
         build_settings = match.group(0)
-        if (
-            re.search(r'BAZEL_OUTPUTS_PRODUCT_BASENAME = ("[^"]+\.app"|[^;]+\.app);', build_settings)
-            and 'COMPILE_TARGET_NAME = {};'.format(target_name.split('/')[-1]) in build_settings
-        ):
+        target_basename = target_name.split('/')[-1]
+        is_app_product = re.search(
+            r'BAZEL_OUTPUTS_PRODUCT_BASENAME = ("[^"]+\.app"|[^;]+\.app);',
+            build_settings
+        )
+        is_requested_target = (
+            'COMPILE_TARGET_NAME = {};'.format(target_basename) in build_settings
+            or 'BAZEL_LABEL = "@@//{0}:{0}";'.format(target_basename) in build_settings
+        )
+        if is_app_product and is_requested_target:
             build_settings = _set_build_setting(build_settings, 'INSTALL_PATH', '/Applications')
+            build_settings = _set_build_setting(build_settings, 'SKIP_INSTALL', 'NO')
             if re.search(r'\n[ \t]*BAZEL_OUTPUTS_PRODUCT = "bazel-out/[^"]+-opt-', build_settings):
                 build_settings = _set_build_setting(build_settings, 'CODE_SIGN_IDENTITY', '"Apple Distribution"')
                 build_settings = _set_build_setting(build_settings, '"CODE_SIGN_IDENTITY[sdk=iphoneos*]"', '"Apple Distribution"')
             return build_settings
 
-        if re.search(r'BAZEL_OUTPUTS_PRODUCT_BASENAME = [^;]+\.framework;', build_settings):
-            return _set_build_setting(build_settings, 'SKIP_INSTALL', 'YES')
-
-        return build_settings
+        return _set_build_setting(build_settings, 'SKIP_INSTALL', 'YES')
 
     contents = re.sub(
         r'buildSettings = \{.*?\n[ \t]*\};',
