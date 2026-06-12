@@ -218,7 +218,7 @@ class BazelCommandLine:
     def get_disk_cache_arguments(self):
         return [
             '--disk_cache={path}'.format(path=self.cache_dir),
-            '--experimental_disk_cache_gc_max_size=50G',
+            '--experimental_disk_cache_gc_max_size=20G',
             '--experimental_disk_cache_gc_max_age=21d',
             '--experimental_disk_cache_gc_idle_delay=5m',
         ]
