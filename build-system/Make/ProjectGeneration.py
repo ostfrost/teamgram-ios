@@ -34,6 +34,99 @@ def _set_build_setting(build_settings, key, value):
 
     return '{}\n{}{} = {};'.format(build_settings.rstrip(), indent, key, value)
 
+def _scheme_references_xcodeproj(contents, xcodeproj_path):
+    normalized_path = xcodeproj_path.replace(os.sep, '/')
+    project_name = os.path.basename(normalized_path)
+    return (
+        normalized_path in contents
+        or 'container:{}'.format(project_name) in contents
+        or 'container:{}'.format(normalized_path) in contents
+    )
+
+def _find_app_scheme_path(scheme_dir, xcodeproj_path, target_name):
+    target_basename = target_name.split('/')[-1]
+    exact_scheme_path = os.path.join(scheme_dir, '{}.xcscheme'.format(target_basename))
+    scheme_paths = []
+
+    if os.path.isfile(exact_scheme_path):
+        scheme_paths.append(exact_scheme_path)
+
+    if os.path.isdir(scheme_dir):
+        for file_name in sorted(os.listdir(scheme_dir)):
+            if not file_name.endswith('.xcscheme'):
+                continue
+            candidate_path = os.path.join(scheme_dir, file_name)
+            if candidate_path not in scheme_paths:
+                scheme_paths.append(candidate_path)
+
+    fallback_paths = []
+    for scheme_path in scheme_paths:
+        with open(scheme_path, 'r') as file:
+            contents = file.read()
+        if not re.search(r'BuildableName = "[^"]+\.app"', contents):
+            continue
+        if not _scheme_references_xcodeproj(contents, xcodeproj_path):
+            continue
+        if 'BlueprintName = "{}"'.format(target_basename) in contents:
+            return scheme_path
+        fallback_paths.append(scheme_path)
+
+    if fallback_paths:
+        return fallback_paths[0]
+    return None
+
+def _assert_app_store_archive_scheme(contents, scheme_path):
+    if not re.search(
+        r'<BuildActionEntry\b[\s\S]*?buildForArchiving = "YES"[\s\S]*?<BuildableReference\b[\s\S]*?BuildableName = "[^"]+\.app"',
+        contents
+    ):
+        raise RuntimeError(
+            '{} must build the app target for archiving'.format(scheme_path)
+        )
+    if not re.search(
+        r'<ArchiveAction\b[\s\S]*?buildConfiguration = "Release"',
+        contents
+    ):
+        raise RuntimeError(
+            '{} must archive with the Release configuration'.format(scheme_path)
+        )
+
+def _assert_app_store_archive_project_settings(contents, target_name, project_path):
+    target_basename = target_name.split('/')[-1]
+    found_app_settings = False
+
+    for match in re.finditer(
+        r'buildSettings = \{.*?\n[ \t]*\};',
+        contents,
+        flags=re.DOTALL
+    ):
+        build_settings = match.group(0)
+        is_app_product = re.search(
+            r'BAZEL_OUTPUTS_PRODUCT_BASENAME = ("[^"]+\.app"|[^;]+\.app);',
+            build_settings
+        )
+        is_requested_target = (
+            'COMPILE_TARGET_NAME = {};'.format(target_basename) in build_settings
+            or 'BAZEL_LABEL = "@@//{0}:{0}";'.format(target_basename) in build_settings
+        )
+        if not is_app_product or not is_requested_target:
+            continue
+
+        found_app_settings = True
+        if not re.search(r'\n[ \t]*INSTALL_PATH = /Applications;', build_settings):
+            raise RuntimeError(
+                '{} must install the app target into /Applications for archives'.format(project_path)
+            )
+        if not re.search(r'\n[ \t]*SKIP_INSTALL = NO;', build_settings):
+            raise RuntimeError(
+                '{} must set SKIP_INSTALL = NO for the app target'.format(project_path)
+            )
+
+    if not found_app_settings:
+        raise RuntimeError(
+            '{} does not contain archive settings for {}'.format(project_path, target_basename)
+        )
+
 def configure_app_store_archive_for_generated_project(base_path, xcodeproj_path, target_name):
     scheme_dir = os.path.join(
         base_path,
@@ -41,25 +134,13 @@ def configure_app_store_archive_for_generated_project(base_path, xcodeproj_path,
         'xcshareddata',
         'xcschemes'
     )
-    scheme_path = os.path.join(scheme_dir, '{}.xcscheme'.format(target_name.split('/')[-1]))
-    if not os.path.isfile(scheme_path):
-        scheme_path = None
-        if os.path.isdir(scheme_dir):
-            for file_name in sorted(os.listdir(scheme_dir)):
-                if not file_name.endswith('.xcscheme'):
-                    continue
-                candidate_path = os.path.join(scheme_dir, file_name)
-                with open(candidate_path, 'r') as file:
-                    candidate_contents = file.read()
-                if (
-                    re.search(r'BuildableName = "[^"]+\.app"', candidate_contents)
-                    and 'BlueprintName = "{}"'.format(target_name.split('/')[-1]) not in candidate_contents
-                    and xcodeproj_path in candidate_contents
-                ):
-                    scheme_path = candidate_path
-                    break
-        if scheme_path is None:
-            return
+    scheme_path = _find_app_scheme_path(scheme_dir, xcodeproj_path, target_name)
+    if scheme_path is None:
+        if target_name == 'Telegram':
+            raise RuntimeError(
+                'Could not find an app xcscheme in {}'.format(scheme_dir)
+            )
+        return
 
     current_mode = os.stat(scheme_path).st_mode
     os.chmod(scheme_path, current_mode | 0o200)
@@ -77,6 +158,7 @@ def configure_app_store_archive_for_generated_project(base_path, xcodeproj_path,
         contents,
         count=1
     )
+    _assert_app_store_archive_scheme(contents, scheme_path)
 
     with open(scheme_path, 'w') as file:
         file.write(contents)
@@ -118,6 +200,7 @@ def configure_app_store_archive_for_generated_project(base_path, xcodeproj_path,
         contents,
         flags=re.DOTALL
     )
+    _assert_app_store_archive_project_settings(contents, target_name, project_path)
 
     with open(project_path, 'w') as file:
         file.write(contents)
