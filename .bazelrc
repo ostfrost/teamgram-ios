@@ -28,6 +28,11 @@ common --features=swift.use_global_index_store
 common --features=swift.use_global_module_cache
 common --features=oso_prefix_is_pwd
 
+# The iOS 17 app transition also recompiles legacy Telegram libraries with the
+# app deployment target under rules_xcodeproj. Keep their existing deprecation
+# warnings non-fatal in Xcode without changing normal Bazel or CI builds.
+build:rules_xcodeproj --@build_bazel_rules_swift//swift:copt=-no-warnings-as-errors
+
 # SourceKit BSP: Index build config (used for background indexing)
 common:index_build --experimental_convenience_symlinks=ignore
 common:index_build --show_result=0

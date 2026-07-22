@@ -1650,7 +1650,9 @@ plist_fragment(
         <integer>2</integer>
     </array>
     <key>UIFileSharingEnabled</key>
-    <false/>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
     <key>UILaunchStoryboardName</key>
     <string>LaunchScreen</string>
     <key>UIRequiresPersistentWiFi</key>
@@ -1730,7 +1732,7 @@ ios_application(
     ),
     executable_name = "Telegram",
     families = ["iphone", "ipad"],
-    minimum_os_version = minimum_os_version,
+    minimum_os_version = "17.0",
     provisioning_profile = select({
         "//build-system:ios_sim_arm64": None,
         ":disableProvisioningProfilesSetting": None,
@@ -1781,7 +1783,7 @@ ios_application(
 )
 
 xcodeproj(
-    name = "Telegram_xcodeproj",
+    name = "Telegram_xcodeproj_raw",
     bazel_path = telegram_bazel_path,
     project_name = "Telegram",
     tags = ["manual"],
@@ -1798,6 +1800,15 @@ xcodeproj(
         },
     },
     default_xcode_configuration = "Debug"
+)
+
+sh_binary(
+    name = "Telegram_xcodeproj",
+    srcs = ["generate_xcodeproj.sh"],
+    args = ["$(location :Telegram_xcodeproj_raw)"],
+    data = [":Telegram_xcodeproj_raw"],
+    tags = ["manual"],
+    testonly = True,
 )
 
 filegroup(

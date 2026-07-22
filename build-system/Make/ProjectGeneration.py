@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import re
@@ -9,6 +10,7 @@ from BuildEnvironment import is_apple_silicon, call_executable, BuildEnvironment
 def remove_directory(path):
     if os.path.isdir(path):
         shutil.rmtree(path)
+
 
 def _set_build_setting(build_settings, key, value):
     pattern = r'(\n[ \t]*){} = [^;]+;'.format(re.escape(key))
@@ -34,6 +36,7 @@ def _set_build_setting(build_settings, key, value):
 
     return '{}\n{}{} = {};'.format(build_settings.rstrip(), indent, key, value)
 
+
 def _scheme_references_xcodeproj(contents, xcodeproj_path):
     normalized_path = xcodeproj_path.replace(os.sep, '/')
     project_name = os.path.basename(normalized_path)
@@ -42,6 +45,7 @@ def _scheme_references_xcodeproj(contents, xcodeproj_path):
         or 'container:{}'.format(project_name) in contents
         or 'container:{}'.format(normalized_path) in contents
     )
+
 
 def _find_app_scheme_path(scheme_dir, xcodeproj_path, target_name):
     target_basename = target_name.split('/')[-1]
@@ -75,6 +79,7 @@ def _find_app_scheme_path(scheme_dir, xcodeproj_path, target_name):
         return fallback_paths[0]
     return None
 
+
 def _assert_app_store_archive_scheme(contents, scheme_path):
     if not re.search(
         r'<BuildActionEntry\b[\s\S]*?buildForArchiving = "YES"[\s\S]*?<BuildableReference\b[\s\S]*?BuildableName = "[^"]+\.app"',
@@ -90,6 +95,7 @@ def _assert_app_store_archive_scheme(contents, scheme_path):
         raise RuntimeError(
             '{} must archive with the Release configuration'.format(scheme_path)
         )
+
 
 def _assert_app_store_archive_project_settings(contents, target_name, project_path):
     target_basename = target_name.split('/')[-1]
@@ -121,11 +127,16 @@ def _assert_app_store_archive_project_settings(contents, target_name, project_pa
             raise RuntimeError(
                 '{} must set SKIP_INSTALL = NO for the app target'.format(project_path)
             )
+        if not re.search(r'\n[ \t]*IPHONEOS_DEPLOYMENT_TARGET = 17\.0;', build_settings):
+            raise RuntimeError(
+                '{} must set iOS 17.0 only for the app target'.format(project_path)
+            )
 
     if not found_app_settings:
         raise RuntimeError(
             '{} does not contain archive settings for {}'.format(project_path, target_basename)
         )
+
 
 def configure_app_store_archive_for_generated_project(base_path, xcodeproj_path, target_name):
     scheme_dir = os.path.join(
@@ -187,6 +198,7 @@ def configure_app_store_archive_for_generated_project(base_path, xcodeproj_path,
         if is_app_product and is_requested_target:
             build_settings = _set_build_setting(build_settings, 'INSTALL_PATH', '/Applications')
             build_settings = _set_build_setting(build_settings, 'SKIP_INSTALL', 'NO')
+            build_settings = _set_build_setting(build_settings, 'IPHONEOS_DEPLOYMENT_TARGET', '17.0')
             if re.search(r'\n[ \t]*BAZEL_OUTPUTS_PRODUCT = "bazel-out/[^"]+-opt-', build_settings):
                 build_settings = _set_build_setting(build_settings, 'CODE_SIGN_IDENTITY', '"Apple Distribution"')
                 build_settings = _set_build_setting(build_settings, '"CODE_SIGN_IDENTITY[sdk=iphoneos*]"', '"Apple Distribution"')
@@ -204,6 +216,7 @@ def configure_app_store_archive_for_generated_project(base_path, xcodeproj_path,
 
     with open(project_path, 'w') as file:
         file.write(contents)
+
 
 def generate_xcodeproj(build_environment: BuildEnvironment, disable_extensions, disable_provisioning_profiles, include_release, generate_dsym, bazel_app_arguments, target_name):
     if '/' in target_name:
@@ -252,3 +265,22 @@ def generate_xcodeproj(build_environment: BuildEnvironment, disable_extensions, 
 
 def generate(build_environment: BuildEnvironment, disable_extensions, disable_provisioning_profiles, include_release, generate_dsym, bazel_app_arguments, target_name) -> str:
     return generate_xcodeproj(build_environment, disable_extensions, disable_provisioning_profiles, include_release, generate_dsym, bazel_app_arguments, target_name)
+
+
+def _main():
+    parser = argparse.ArgumentParser(
+        description='Configure a generated Xcode project for App Store archives.'
+    )
+    parser.add_argument('--base-path', required=True)
+    parser.add_argument('--xcodeproj-path', required=True)
+    parser.add_argument('--target-name', required=True)
+    arguments = parser.parse_args()
+    configure_app_store_archive_for_generated_project(
+        arguments.base_path,
+        arguments.xcodeproj_path,
+        arguments.target_name
+    )
+
+
+if __name__ == '__main__':
+    _main()
