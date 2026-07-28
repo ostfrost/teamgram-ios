@@ -5,6 +5,8 @@ swift_library(
     module_name = "PeerInfoScreen",
     srcs = glob([
         "Sources/**/*.swift",
+    ], exclude = [
+        "Sources/AvatarTelegramStickerPackAssigner.swift",
     ]),
     copts = [
         "-warnings-as-errors",
@@ -19,7 +21,6 @@ swift_library(
         "//submodules/AppBundle",
         "//submodules/AsyncDisplayKit",
         "//submodules/TelegramUI/Components/AvatarEditorScreen",
-        "//avatar-module-ios:AvatarIntegration",
         "//submodules/AvatarNode",
         "//submodules/TelegramUI/Components/Stories/AvatarStoryIndicatorComponent",
         "//submodules/AvatarVideoNode",
@@ -175,6 +176,28 @@ swift_library(
         "//submodules/TelegramUI/Components/AlertComponent/AlertTransferHeaderComponent",
         "//submodules/TelegramUI/Components/HorizontalTabsComponent",
         "//submodules/TelegramUI/Components/PeerInfo/AccountPeerContextItem",
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
+)
+
+swift_library(
+    name = "AvatarPeerInfoIntegration",
+    module_name = "AvatarPeerInfoIntegration",
+    srcs = [
+        "Sources/AvatarTelegramStickerPackAssigner.swift",
+    ],
+    copts = [
+        "-warnings-as-errors",
+    ],
+    deps = [
+        ":PeerInfoScreen",
+        "//avatar-module-ios:AvatarIntegration",
+        "//submodules/AccountContext",
+        "//submodules/Postbox",
+        "//submodules/SSignalKit/SwiftSignalKit",
+        "//submodules/TelegramCore",
     ],
     visibility = [
         "//visibility:public",

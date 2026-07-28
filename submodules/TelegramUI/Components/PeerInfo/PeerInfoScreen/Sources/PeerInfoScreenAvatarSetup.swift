@@ -20,7 +20,17 @@ import PeerAvatarGalleryUI
 import PresentationDataUtils
 import LegacyComponents
 import LegacyMediaPickerUI
-import AvatarIntegration
+
+public enum PeerInfoAvatarModuleIntegration {
+    public typealias Presenter = (
+        _ presentingViewController: UIViewController,
+        _ context: AccountContext,
+        _ localeIdentifier: String,
+        _ completion: @escaping (UIImage?) -> Void
+    ) -> Void
+
+    public static var presenter: Presenter?
+}
 
 extension PeerInfoScreenImpl {
     
@@ -33,22 +43,20 @@ extension PeerInfoScreenImpl {
         }
         self.view.endEditing(true)
 
-        let stickerPackAssigner = AvatarTelegramStickerPackAssigner(
-            context: self.context
-        )
-        
-        AvatarIntegrationEntryPoint.presentAvatarFlow(
-            from: self,
-            localeIdentifier: self.presentationData.strings.baseLanguageCode,
-            onStickerPackReady: { [stickerPackAssigner] assignment, completion in
-                stickerPackAssigner.assign(
-                    assignment,
-                    completion: completion
-                )
-            },
-            onAvatarCreated: { [weak self] result in
-                self?.updateProfilePhoto(result.image, mode: mode, uploadStatus: nil)
-                completion(result.image)
+        guard let presenter = PeerInfoAvatarModuleIntegration.presenter else {
+            completion(nil)
+            return
+        }
+
+        presenter(
+            self,
+            self.context,
+            self.presentationData.strings.baseLanguageCode,
+            { [weak self] image in
+                if let image {
+                    self?.updateProfilePhoto(image, mode: mode, uploadStatus: nil)
+                }
+                completion(image)
             }
         )
     }

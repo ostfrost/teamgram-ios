@@ -1,9 +1,41 @@
 import AccountContext
 import AvatarIntegration
 import Foundation
+import PeerInfoScreen
 import Postbox
 import SwiftSignalKit
 import TelegramCore
+import UIKit
+
+public enum AvatarPeerInfoIntegration {
+    public static func install() {
+        PeerInfoAvatarModuleIntegration.presenter = {
+            presentingViewController,
+            context,
+            localeIdentifier,
+            avatarCompletion in
+            let stickerPackAssigner = AvatarTelegramStickerPackAssigner(
+                context: context
+            )
+
+            AvatarIntegrationEntryPoint.presentAvatarFlow(
+                from: presentingViewController,
+                localeIdentifier: localeIdentifier,
+                onStickerPackReady: {
+                    [stickerPackAssigner] assignment,
+                    completion in
+                    stickerPackAssigner.assign(
+                        assignment,
+                        completion: completion
+                    )
+                },
+                onAvatarCreated: { result in
+                    avatarCompletion(result.image)
+                }
+            )
+        }
+    }
+}
 
 final class AvatarTelegramStickerPackAssigner {
     private struct PendingAssignment {

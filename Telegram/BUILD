@@ -376,6 +376,7 @@ swift_library(
         ":GeneratedPresentationStrings/Resources/PresentationStrings.data",
     ],
     deps = [
+        "//submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen:AvatarPeerInfoIntegration",
         "//submodules/TelegramUI:TelegramUI",
         "//third-party/boringssl:crypto",
     ],
