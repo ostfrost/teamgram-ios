@@ -32,10 +32,20 @@ extension PeerInfoScreenImpl {
             return
         }
         self.view.endEditing(true)
+
+        let stickerPackAssigner = AvatarTelegramStickerPackAssigner(
+            context: self.context
+        )
         
         AvatarIntegrationEntryPoint.presentAvatarFlow(
             from: self,
             localeIdentifier: self.presentationData.strings.baseLanguageCode,
+            onStickerPackReady: { [stickerPackAssigner] assignment, completion in
+                stickerPackAssigner.assign(
+                    assignment,
+                    completion: completion
+                )
+            },
             onAvatarCreated: { [weak self] result in
                 self?.updateProfilePhoto(result.image, mode: mode, uploadStatus: nil)
                 completion(result.image)
