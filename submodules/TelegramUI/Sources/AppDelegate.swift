@@ -41,6 +41,7 @@ import MediaEditor
 import TelegramUIDeclareEncodables
 import ContextMenuScreen
 import MetalEngine
+import PeerInfoScreen
 import RecaptchaEnterprise
 import NavigationBarImpl
 import ContextUI
@@ -2566,6 +2567,17 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             if let authContext = authContext, let confirmationCode = parseConfirmationCodeUrl(sharedContext: sharedContext, url: url) {
                 authContext.rootController.applyConfirmationCode(confirmationCode)
             } else if let context = context {
+                let localeIdentifier = context.context.sharedContext.currentPresentationData.with {
+                    $0.strings.baseLanguageCode
+                }
+                if PeerInfoAvatarModuleIntegration.wardrobeGiftURLHandler?(
+                    url,
+                    context.rootController,
+                    context.context,
+                    localeIdentifier
+                ) == true {
+                    return
+                }
                 context.openUrl(url, external: true)
             } else if let authContext = authContext {
                 if let proxyData = parseProxyUrl(sharedContext: sharedContext, url: url) {

@@ -8,32 +8,98 @@ import TelegramCore
 import UIKit
 
 public enum AvatarPeerInfoIntegration {
+    private static var isAvatarFlowPresented = false
+
     public static func install() {
         PeerInfoAvatarModuleIntegration.presenter = {
             presentingViewController,
             context,
             localeIdentifier,
             avatarCompletion in
-            let stickerPackAssigner = AvatarTelegramStickerPackAssigner(
-                context: context
-            )
-
-            AvatarIntegrationEntryPoint.presentAvatarFlow(
-                from: presentingViewController,
-                localeIdentifier: localeIdentifier,
-                onStickerPackReady: {
-                    [stickerPackAssigner] assignment,
-                    completion in
-                    stickerPackAssigner.assign(
-                        assignment,
-                        completion: completion
-                    )
-                },
-                onAvatarCreated: { result in
-                    avatarCompletion(result.image)
-                }
-            )
+            Task { @MainActor in
+                self.presentAvatarFlow(
+                    from: presentingViewController,
+                    context: context,
+                    localeIdentifier: localeIdentifier,
+                    avatarCompletion: avatarCompletion
+                )
+            }
         }
+        PeerInfoAvatarModuleIntegration.wardrobeGiftURLHandler = {
+            url,
+            presentingViewController,
+            context,
+            localeIdentifier in
+            guard AvatarIntegrationEntryPoint.isWardrobeGiftURL(url) else {
+                return false
+            }
+            Task { @MainActor in
+                _ = AvatarIntegrationEntryPoint.handleWardrobeGiftURL(url)
+                guard self.isAvatarFlowPresented == false else {
+                    return
+                }
+                self.presentAvatarFlow(
+                    from: presentingViewController,
+                    context: context,
+                    localeIdentifier: localeIdentifier,
+                    avatarCompletion: { _ in }
+                )
+            }
+            return true
+        }
+    }
+
+    @MainActor
+    private static func presentAvatarFlow(
+        from presentingViewController: UIViewController,
+        context: AccountContext,
+        localeIdentifier: String,
+        avatarCompletion: @escaping (UIImage?) -> Void
+    ) {
+        guard self.isAvatarFlowPresented == false else {
+            return
+        }
+        self.isAvatarFlowPresented = true
+        let stickerPackAssigner = AvatarTelegramStickerPackAssigner(
+            context: context
+        )
+        AvatarIntegrationEntryPoint.presentAvatarFlow(
+            from: self.topMostViewController(from: presentingViewController),
+            localeIdentifier: localeIdentifier,
+            onClose: {
+                self.isAvatarFlowPresented = false
+            },
+            onStickerPackReady: {
+                [stickerPackAssigner] assignment,
+                completion in
+                stickerPackAssigner.assign(
+                    assignment,
+                    completion: completion
+                )
+            },
+            onAvatarCreated: { result in
+                self.isAvatarFlowPresented = false
+                avatarCompletion(result.image)
+            }
+        )
+    }
+
+    @MainActor
+    private static func topMostViewController(
+        from viewController: UIViewController
+    ) -> UIViewController {
+        if let presented = viewController.presentedViewController {
+            return self.topMostViewController(from: presented)
+        }
+        if let navigationController = viewController as? UINavigationController,
+           let visibleViewController = navigationController.visibleViewController {
+            return self.topMostViewController(from: visibleViewController)
+        }
+        if let tabBarController = viewController as? UITabBarController,
+           let selectedViewController = tabBarController.selectedViewController {
+            return self.topMostViewController(from: selectedViewController)
+        }
+        return viewController
     }
 }
 

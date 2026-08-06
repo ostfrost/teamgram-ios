@@ -30,6 +30,15 @@ public enum PeerInfoAvatarModuleIntegration {
     ) -> Void
 
     public static var presenter: Presenter?
+
+    public typealias WardrobeGiftURLHandler = (
+        _ url: URL,
+        _ presentingViewController: UIViewController,
+        _ context: AccountContext,
+        _ localeIdentifier: String
+    ) -> Bool
+
+    public static var wardrobeGiftURLHandler: WardrobeGiftURLHandler?
 }
 
 extension PeerInfoScreenImpl {
