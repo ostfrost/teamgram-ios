@@ -1787,6 +1787,11 @@ xcodeproj(
     name = "Telegram_xcodeproj_raw",
     bazel_path = telegram_bazel_path,
     project_name = "Telegram",
+    post_build = """
+if [ "${ACTION:-}" != "indexbuild" ]; then
+    python3 "$SRCROOT/build-system/Make/UploadCrashlyticsSymbols.py" --bazel-out "$BAZEL_OUT" --allow-empty
+fi
+""",
     tags = ["manual"],
     top_level_targets = [
         top_level_target(":Telegram", target_environments = ["device", "simulator"]),
@@ -1795,9 +1800,11 @@ xcodeproj(
     xcode_configurations = {
         "Debug": {
             "//command_line_option:compilation_mode": "dbg",
+            "//command_line_option:apple_generate_dsym": True,
         },
         "Release": {
             "//command_line_option:compilation_mode": "opt",
+            "//command_line_option:apple_generate_dsym": True,
         },
     },
     default_xcode_configuration = "Debug"

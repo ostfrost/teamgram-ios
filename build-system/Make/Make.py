@@ -11,6 +11,7 @@ import glob
 
 from BuildEnvironment import resolve_executable, call_executable, run_executable_with_output, BuildEnvironmentVersions, BuildEnvironment
 from ProjectGeneration import generate
+from UploadCrashlyticsSymbols import find_symbols
 from BazelLocation import locate_bazel
 from BuildConfiguration import CodesigningSource, GitCodesigningSource, DirectoryCodesigningSource, XcodeManagedCodesigningSource, BuildConfiguration, build_configuration_from_json
 import RemoteBuild
@@ -619,6 +620,9 @@ def build(bazel, arguments):
 
     bazel_command_line.invoke_build()
 
+    # Resolve before upload-symbols runs Bazel with its own output configuration.
+    crashlytics_symbols_path = os.path.realpath('bazel-bin/Telegram')
+
     if arguments.outputBuildArtifactsPath is not None:
         artifacts_path = os.path.abspath(arguments.outputBuildArtifactsPath)
         if os.path.exists(artifacts_path + '/Telegram.ipa'):
@@ -638,7 +642,7 @@ def build(bazel, arguments):
             sys.exit(1)
         shutil.copyfile(ipa_paths[0], artifacts_path + '/Telegram.ipa')
 
-        dsym_paths = glob.glob('bazel-bin/Telegram/*.dSYM')
+        dsym_paths = find_symbols([crashlytics_symbols_path])
         for dsym_path in dsym_paths:
             file_name = os.path.basename(dsym_path)
             shutil.copytree(dsym_path, artifacts_path + '/DSYMs/{}'.format(file_name))
@@ -651,6 +655,17 @@ def build(bazel, arguments):
         ], check_result=True)
         os.chdir(previous_directory)
         shutil.rmtree(artifacts_path + '/DSYMs')
+
+    if arguments.target in (None, 'Telegram/Telegram', 'Telegram:Telegram', '//Telegram:Telegram', '//Telegram'):
+        upload_arguments = [
+            sys.executable,
+            os.path.join(os.path.dirname(__file__), 'UploadCrashlyticsSymbols.py'),
+            '--dsym-path', crashlytics_symbols_path,
+            '--bazel', bazel,
+        ]
+        if arguments.bazelUserRoot:
+            upload_arguments += ['--bazel-user-root', arguments.bazelUserRoot]
+        call_executable(upload_arguments)
 
 
 def test(bazel, arguments):

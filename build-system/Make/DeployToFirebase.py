@@ -4,7 +4,7 @@ import argparse
 import json
 import re
 
-from BuildEnvironment import run_executable_with_output
+from BuildEnvironment import run_executable_with_output, call_executable
 
 def deploy_to_firebase(args):
     if not os.path.exists(args.configuration):
@@ -47,6 +47,17 @@ def deploy_to_firebase(args):
             print(f"Sharing link: {sharing_link_match.group(1)}")
         else:
             print("No sharing link found in the output.")
+
+        if args.dsyms is not None:
+            upload_arguments = [
+                sys.executable,
+                os.path.join(os.path.dirname(__file__), 'UploadCrashlyticsSymbols.py'),
+                '--dsym-path',
+                args.dsyms
+            ]
+            if args.debug:
+                upload_arguments.append('--debug')
+            call_executable(upload_arguments)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='deploy-firebase')

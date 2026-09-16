@@ -10,6 +10,10 @@ public enum AllowedReactions {
     case all
 }
 
+public enum AdditionalMessageTagReactions {
+    public static var files: ((AccountContext) -> Signal<[TelegramMediaFile.Accessor], NoError>)?
+}
+
 public func peerMessageAllowedReactions(context: AccountContext, message: Message) -> Signal<(allowedReactions: AllowedReactions?, areStarsEnabled: Bool), NoError> {
     if message.id.peerId == context.account.peerId {
         return .single((.all, false))
@@ -76,6 +80,8 @@ public func peerMessageAllowedReactions(context: AccountContext, message: Messag
 }
 
 public func tagMessageReactions(context: AccountContext, subPeerId: EnginePeer.Id?) -> Signal<[ReactionItem], NoError> {
+    let additionalFiles = AdditionalMessageTagReactions.files?(context)
+        ?? .single([])
     let topTags: Signal<([MessageReaction.Reaction], [Int64: TelegramMediaFile]), NoError> = context.engine.data.get(TelegramEngine.EngineData.Item.Messages.SavedMessageTagStats(peerId: context.account.peerId, threadId: subPeerId?.toInt64()))
     |> mapToSignal { tagStats -> Signal<([MessageReaction.Reaction], [Int64: TelegramMediaFile]), NoError> in
         let reactions = tagStats.sorted(by: { lhs, rhs in
@@ -103,10 +109,11 @@ public func tagMessageReactions(context: AccountContext, subPeerId: EnginePeer.I
     return combineLatest(
         context.engine.stickers.availableReactions(),
         context.account.postbox.itemCollectionsView(orderedItemListCollectionIds: [Namespaces.OrderedItemList.CloudDefaultTagReactions], namespaces: [ItemCollectionId.Namespace.max - 1], aroundIndex: nil, count: 10000000),
-        topTags
+        topTags,
+        additionalFiles
     )
     |> take(1)
-    |> map { availableReactions, view, topTags -> [ReactionItem] in
+    |> map { availableReactions, view, topTags, additionalFiles -> [ReactionItem] in
         var defaultTagReactions: OrderedItemListView?
         for orderedView in view.orderedItemListsViews {
             if orderedView.collectionId == Namespaces.OrderedItemList.CloudDefaultTagReactions {
@@ -116,6 +123,24 @@ public func tagMessageReactions(context: AccountContext, subPeerId: EnginePeer.I
         
         var result: [ReactionItem] = []
         var existingIds = Set<MessageReaction.Reaction>()
+
+        for file in additionalFiles {
+            if existingIds.contains(.custom(file.fileId.id)) {
+                continue
+            }
+            existingIds.insert(.custom(file.fileId.id))
+
+            result.append(ReactionItem(
+                reaction: ReactionItem.Reaction(rawValue: .custom(file.fileId.id)),
+                appearAnimation: file,
+                stillAnimation: file,
+                listAnimation: file,
+                largeListAnimation: file,
+                applicationAnimation: nil,
+                largeApplicationAnimation: nil,
+                isCustom: true
+            ))
+        }
         
         for reactionValue in topTags.0 {
             switch reactionValue {

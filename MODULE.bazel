@@ -1,4 +1,40 @@
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "firebase_analytics_binary",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+
+filegroup(name = "FBLPromises", srcs = glob(["FBLPromises.xcframework/**"]))
+filegroup(name = "FirebaseCore", srcs = glob(["FirebaseCore.xcframework/**"]))
+filegroup(name = "FirebaseCoreInternal", srcs = glob(["FirebaseCoreInternal.xcframework/**"]))
+filegroup(name = "FirebaseInstallations", srcs = glob(["FirebaseInstallations.xcframework/**"]))
+filegroup(name = "GoogleUtilities", srcs = glob(["GoogleUtilities.xcframework/**"]))
+filegroup(name = "nanopb", srcs = glob(["nanopb.xcframework/**"]))
+""",
+    sha256 = "6cf557c25c7bcfa1150b33bc6301d2e122bed3728b19a511551b51d43d81a9a4",
+    strip_prefix = "FirebaseAnalytics",
+    urls = ["https://dl.google.com/dl/firebase/ios/carthage/11.15.0/FirebaseAnalytics-9a411c918346c8ea.zip"],
+)
+
+http_archive(
+    name = "firebase_crashlytics_binary",
+    build_file_content = """
+package(default_visibility = ["//visibility:public"])
+
+filegroup(name = "FirebaseCoreExtension", srcs = glob(["FirebaseCoreExtension.xcframework/**"]))
+filegroup(name = "FirebaseCrashlytics", srcs = glob(["FirebaseCrashlytics.xcframework/**"]))
+filegroup(name = "FirebaseRemoteConfigInterop", srcs = glob(["FirebaseRemoteConfigInterop.xcframework/**"]))
+filegroup(name = "FirebaseSessions", srcs = glob(["FirebaseSessions.xcframework/**"]))
+filegroup(name = "GoogleDataTransport", srcs = glob(["GoogleDataTransport.xcframework/**"]))
+filegroup(name = "Promises", srcs = glob(["Promises.xcframework/**"]))
+exports_files(["run", "upload-symbols"])
+""",
+    sha256 = "dedc83f526a93875b971687d7bdf9a2511a7ce4a9fe382c637a03816ecc4280c",
+    strip_prefix = "FirebaseCrashlytics",
+    urls = ["https://dl.google.com/dl/firebase/ios/carthage/11.15.0/FirebaseCrashlytics-6c0391d0cb3de2ad.zip"],
+)
 
 bazel_dep(name = "bazel_features", version = "1.33.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.1")

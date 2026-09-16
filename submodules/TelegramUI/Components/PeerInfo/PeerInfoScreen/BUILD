@@ -195,9 +195,12 @@ swift_library(
         ":PeerInfoScreen",
         "//avatar-module-ios:AvatarIntegration",
         "//submodules/AccountContext",
+        "//submodules/AnimatedStickerNode",
+        "//submodules/FFMpegBinding",
         "//submodules/Postbox",
         "//submodules/SSignalKit/SwiftSignalKit",
         "//submodules/TelegramCore",
+        "//submodules/TelegramUI/Components/Chat/TopMessageReactions",
     ],
     visibility = [
         "//visibility:public",

@@ -1,6 +1,9 @@
 build --action_env=ZERO_AR_DATE=1
 
 build --apple_platform_type=ios
+# Crashlytics needs symbols for every build, including simulator test crashes.
+build --apple_generate_dsym
+build --output_groups=+dsyms
 build --enable_platform_specific_config
 build --apple_crosstool_top=@local_config_apple_cc//:toolchain
 build --crosstool_top=@local_config_apple_cc//:toolchain

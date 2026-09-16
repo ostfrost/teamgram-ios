@@ -387,7 +387,7 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         precondition(!testIsLaunched)
         testIsLaunched = true
-        
+
         let _ = voipTokenPromise.get().start(next: { token in
             self.voipDeviceToken.set(.single(token))
         })
@@ -2567,17 +2567,6 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             if let authContext = authContext, let confirmationCode = parseConfirmationCodeUrl(sharedContext: sharedContext, url: url) {
                 authContext.rootController.applyConfirmationCode(confirmationCode)
             } else if let context = context {
-                let localeIdentifier = context.context.sharedContext.currentPresentationData.with {
-                    $0.strings.baseLanguageCode
-                }
-                if PeerInfoAvatarModuleIntegration.wardrobeGiftURLHandler?(
-                    url,
-                    context.rootController,
-                    context.context,
-                    localeIdentifier
-                ) == true {
-                    return
-                }
                 context.openUrl(url, external: true)
             } else if let authContext = authContext {
                 if let proxyData = parseProxyUrl(sharedContext: sharedContext, url: url) {

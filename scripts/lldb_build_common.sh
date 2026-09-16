@@ -29,4 +29,12 @@ fi
 function run_bazel() {
   local command="$1"
   ${BAZEL_CMD} "${command}" "${BAZEL_LABEL_TO_RUN}" "${ADDITIONAL_FLAGS[@]}" ${LAUNCH_ARGS_ARRAY[@]:+-- "${LAUNCH_ARGS_ARRAY[@]}"}
+  if [[ "$command" == "build" ]]; then
+    case "$BAZEL_LABEL_TO_RUN" in
+      //Telegram:Telegram|//Telegram|Telegram/Telegram|Telegram:Telegram)
+        python3 "$WORKSPACE_ROOT/build-system/Make/UploadCrashlyticsSymbols.py" \
+          --dsym-path "$WORKSPACE_ROOT/bazel-bin/Telegram" --bazel "$WORKSPACE_ROOT/$BAZEL_CMD"
+        ;;
+    esac
+  fi
 }
