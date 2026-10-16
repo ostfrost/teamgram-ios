@@ -30,6 +30,10 @@ public enum PeerInfoAvatarModuleIntegration {
     ) -> Void
 
     public static var presenter: Presenter?
+
+    /// Called on the main queue when any account logs out (manually, remotely or after
+    /// account deletion). Avatar data lives outside Postbox and is removed here.
+    public static var accountDidLogOut: (() -> Void)?
 }
 
 extension PeerInfoScreenImpl {

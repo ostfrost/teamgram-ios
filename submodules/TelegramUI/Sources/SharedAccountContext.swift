@@ -557,6 +557,34 @@ public final class SharedAccountContextImpl: SharedAccountContext {
         
         let startTime = CFAbsoluteTimeGetCurrent()
         
+        // Avatar module data lives outside Postbox: purge it when an account logs out.
+        let avatarActiveAccountIds = Atomic<Set<AccountRecordId>?>(value: nil)
+        let _ = (accountManager.accountRecords()
+        |> map { view -> Set<AccountRecordId> in
+            var ids = Set<AccountRecordId>()
+            for record in view.records {
+                let isLoggedOut = record.attributes.contains(where: { attribute in
+                    if case .loggedOut = attribute {
+                        return true
+                    } else {
+                        return false
+                    }
+                })
+                if !isLoggedOut {
+                    ids.insert(record.id)
+                }
+            }
+            return ids
+        }
+        |> distinctUntilChanged).start(next: { ids in
+            let previous = avatarActiveAccountIds.swap(ids)
+            if let previous, !previous.subtracting(ids).isEmpty {
+                Queue.mainQueue().async {
+                    PeerInfoAvatarModuleIntegration.accountDidLogOut?()
+                }
+            }
+        })
+
         let differenceDisposable = MetaDisposable()
         let _ = (accountManager.accountRecords()
         |> map { view -> (AccountRecordId?, [AccountRecordId: AccountAttributes], (AccountRecordId, Bool)?) in

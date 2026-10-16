@@ -15,10 +15,28 @@ public enum AvatarPeerInfoIntegration {
     private static var isAvatarFlowPresented = false
 
     public static func install() {
+        AvatarStickerVideoPreviewDecoding.install { url, pixelSize in
+            AvatarTelegramStickerVideoPreviewDecoder.decode(
+                url: url,
+                pixelSize: pixelSize
+            )
+        }
+
         AdditionalMessageTagReactions.files = { context in
             AvatarTelegramReactionAssigner.messageTagReactionFiles(
                 context: context
             )
+        }
+
+        // Avatar data lives outside Postbox, so it is not removed with the account.
+        PeerInfoAvatarModuleIntegration.accountDidLogOut = {
+            Task { @MainActor in
+                do {
+                    try await AvatarIntegrationEntryPoint.purgeAllLocalData(reason: .logout)
+                } catch {
+                    NSLog("AvatarIntegration logout purge failed: %@", String(describing: error))
+                }
+            }
         }
 
         Task { @MainActor in
@@ -1496,5 +1514,98 @@ final class AvatarTelegramStickerPackAssigner {
             code: code,
             userInfo: [NSLocalizedDescriptionKey: description]
         )
+    }
+}
+
+/// Decodes the server-produced Telegram WebM (VP9 + alpha) for the avatar
+/// module's sticker panel, with the same FFmpeg path Telegram uses for video
+/// stickers. Frame timing comes from the file, so the preview runs at exactly
+/// the speed Telegram shows.
+enum AvatarTelegramStickerVideoPreviewDecoder {
+    private static let maximumFrameCount = 180
+    private static let decodingQueue = Queue(
+        name: "AvatarIntegration.StickerVideoPreview.Decoding",
+        qos: .utility
+    )
+
+    static func decode(
+        url: URL,
+        pixelSize: Int
+    ) -> [AvatarStickerVideoPreviewFrame]? {
+        var result: [AvatarStickerVideoPreviewFrame]?
+        // VideoStickerDirectFrameSource must be created and released on its queue.
+        Self.decodingQueue.sync {
+            result = Self.decodeOnQueue(url: url, pixelSize: pixelSize)
+        }
+        return result
+    }
+
+    private static func decodeOnQueue(
+        url: URL,
+        pixelSize: Int
+    ) -> [AvatarStickerVideoPreviewFrame]? {
+        FFMpegGlobals.initializeGlobals()
+        guard pixelSize > 0,
+              let frameSource = VideoStickerDirectFrameSource(
+                  queue: Self.decodingQueue,
+                  path: url.path,
+                  isVP9: true,
+                  width: pixelSize,
+                  height: pixelSize,
+                  cachePathPrefix: nil,
+                  unpremultiplyAlpha: false
+              ) else {
+            return nil
+        }
+        var images: [UIImage] = []
+        while images.count < Self.maximumFrameCount,
+              let frame = frameSource.takeFrame(draw: true) {
+            guard case .argb = frame.type,
+                  let image = Self.image(from: frame) else {
+                return nil
+            }
+            images.append(image)
+        }
+        guard !images.isEmpty else {
+            return nil
+        }
+        let frameDuration: TimeInterval
+        if frameSource.duration > 0 {
+            frameDuration = frameSource.duration / Double(images.count)
+        } else {
+            frameDuration = 1.0 / Double(max(1, frameSource.frameRate))
+        }
+        return images.map {
+            AvatarStickerVideoPreviewFrame(image: $0, duration: frameDuration)
+        }
+    }
+
+    /// Frames are BGRA in memory with straight (non-premultiplied) alpha.
+    private static func image(from frame: AnimatedStickerFrame) -> UIImage? {
+        guard frame.width > 0,
+              frame.height > 0,
+              frame.data.count >= frame.bytesPerRow * frame.height,
+              let provider = CGDataProvider(data: frame.data as CFData) else {
+            return nil
+        }
+        let bitmapInfo = CGBitmapInfo.byteOrder32Little.union(
+            CGBitmapInfo(rawValue: CGImageAlphaInfo.first.rawValue)
+        )
+        guard let cgImage = CGImage(
+            width: frame.width,
+            height: frame.height,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: frame.bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: bitmapInfo,
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: true,
+            intent: .defaultIntent
+        ) else {
+            return nil
+        }
+        return UIImage(cgImage: cgImage)
     }
 }

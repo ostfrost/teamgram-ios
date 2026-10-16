@@ -127,5 +127,12 @@ if __name__ == "__main__":
     try:
         upload(parser().parse_args())
     except (OSError, ValueError, subprocess.CalledProcessError, zipfile.BadZipFile) as error:
-        print("error: Crashlytics symbol upload failed: {}".format(error), file=sys.stderr)
-        sys.exit(1)
+        # A failed upload must not fail the app build/archive: the binary is fine,
+        # nothing is stamped as uploaded, so the next build retries, and dSYMs can
+        # be uploaded later from the .xcarchive. Set AVATAR_CRASHLYTICS_STRICT=1
+        # to make it fatal again (e.g. on CI).
+        if os.environ.get("AVATAR_CRASHLYTICS_STRICT") == "1":
+            print("error: Crashlytics symbol upload failed: {}".format(error), file=sys.stderr)
+            sys.exit(1)
+        print("warning: Crashlytics symbol upload failed (build continues): {}".format(error), file=sys.stderr)
+        sys.exit(0)

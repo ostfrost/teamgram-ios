@@ -1787,6 +1787,11 @@ xcodeproj(
     name = "Telegram_xcodeproj_raw",
     bazel_path = telegram_bazel_path,
     project_name = "Telegram",
+    pre_build = """
+if [ "${ACTION:-}" != "indexbuild" ]; then
+    "$SRCROOT/avatar-module-ios/.avatar-local/scripts/check-bazel-output-base.sh" || true
+fi
+""",
     post_build = """
 if [ "${ACTION:-}" != "indexbuild" ]; then
     python3 "$SRCROOT/build-system/Make/UploadCrashlyticsSymbols.py" --bazel-out "$BAZEL_OUT" --allow-empty
