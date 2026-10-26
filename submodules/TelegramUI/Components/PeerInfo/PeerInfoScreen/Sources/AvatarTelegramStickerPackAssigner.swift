@@ -1072,7 +1072,9 @@ final class AvatarTelegramStickerPackAssigner {
             return
         }
         self.isAssigning = true
-        let shortName = self.stickerSetShortName()
+        let shortName = self.stickerSetShortName(
+            avatarID: pending.assignment.avatarID
+        )
         self.disposable.set((
             self.context.engine.stickers.getMyStickerSets()
             |> take(1)
@@ -1336,7 +1338,7 @@ final class AvatarTelegramStickerPackAssigner {
             guard let self else {
                 return
             }
-            guard case let .result(info, items, installed) = loadedPack else {
+            guard case let .result(info, items, _) = loadedPack else {
                 if case .none = loadedPack {
                     self.completeCurrent(.failure(Self.error(
                         code: 6,
@@ -1362,17 +1364,15 @@ final class AvatarTelegramStickerPackAssigner {
                 )
                 self.completeCurrent(.success(()))
             }
-            if installed {
-                complete()
-            } else {
-                self.disposable.set((
-                    self.context.engine.stickers.addStickerPackInteractively(
-                        info: info._parse(),
-                        items: items
-                    )
-                    |> deliverOnMainQueue
-                ).start(completed: complete))
-            }
+            // Installs the set if needed and moves it to the top of the
+            // installed packs, so the updated avatar pack is shown first.
+            self.disposable.set((
+                self.context.engine.stickers.addStickerPackInteractively(
+                    info: info._parse(),
+                    items: items
+                )
+                |> deliverOnMainQueue
+            ).start(completed: complete))
         }))
     }
 
@@ -1470,9 +1470,16 @@ final class AvatarTelegramStickerPackAssigner {
         }
     }
 
-    private func stickerSetShortName() -> String {
+    /// One Telegram sticker set per avatar: a new avatar creates its own set
+    /// (Sticker Bot notification, set inserted at the top of installed packs);
+    /// editing an avatar updates that avatar's set in place.
+    private func stickerSetShortName(avatarID: Int64) -> String {
         let accountID = UInt64(bitPattern: self.context.account.peerId.toInt64())
-        return String(format: "sends_avatar_%016llx", accountID)
+        return String(
+            format: "sends_avatar_%016llx_%016llx",
+            accountID,
+            UInt64(bitPattern: avatarID)
+        )
     }
 
     private func importedParamsHash(shortName: String) -> String? {
