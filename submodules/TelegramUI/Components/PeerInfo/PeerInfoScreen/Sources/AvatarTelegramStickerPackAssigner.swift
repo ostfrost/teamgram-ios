@@ -1136,7 +1136,9 @@ final class AvatarTelegramStickerPackAssigner {
         var didComplete = false
         self.disposable.set((
             self.context.engine.stickers.createStickerSet(
-                title: "My Avatar Stickers",
+                title: Self.stickerSetTitle(
+                    avatarID: pending.assignment.avatarID
+                ),
                 shortName: shortName,
                 stickers: preparedStickers.map(\.sticker),
                 thumbnail: nil,
@@ -1366,13 +1368,42 @@ final class AvatarTelegramStickerPackAssigner {
             }
             // Installs the set if needed and moves it to the top of the
             // installed packs, so the updated avatar pack is shown first.
+            let moveToTop: () -> Void = { [weak self] in
+                guard let self else {
+                    return
+                }
+                self.disposable.set((
+                    self.context.engine.stickers.addStickerPackInteractively(
+                        info: info._parse(),
+                        items: items
+                    )
+                    |> deliverOnMainQueue
+                ).start(completed: complete))
+            }
+            // Sets created before the per-avatar title get renamed; a failed
+            // rename does not fail the assignment.
+            let expectedTitle = Self.stickerSetTitle(
+                avatarID: pending.assignment.avatarID
+            )
+            guard info.title != expectedTitle else {
+                moveToTop()
+                return
+            }
             self.disposable.set((
-                self.context.engine.stickers.addStickerPackInteractively(
-                    info: info._parse(),
-                    items: items
+                self.context.engine.stickers.renameStickerSet(
+                    packReference: reference,
+                    title: expectedTitle
                 )
                 |> deliverOnMainQueue
-            ).start(completed: complete))
+            ).start(error: { _ in
+                NSLog(
+                    "Avatar Telegram stickers: set rename failed avatar=%lld",
+                    pending.assignment.avatarID
+                )
+                moveToTop()
+            }, completed: {
+                moveToTop()
+            }))
         }))
     }
 
@@ -1468,6 +1499,11 @@ final class AvatarTelegramStickerPackAssigner {
                 return .add(preparedSticker.sticker)
             }
         }
+    }
+
+    /// Same title format as Android: "Teamgram Avatar <avatarID>".
+    private static func stickerSetTitle(avatarID: Int64) -> String {
+        "Teamgram Avatar \(avatarID)"
     }
 
     /// One Telegram sticker set per avatar: a new avatar creates its own set
