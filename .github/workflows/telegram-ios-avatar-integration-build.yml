@@ -31,7 +31,7 @@ env:
 jobs:
   avatar-module:
     name: Avatar module verify
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 90
 
     steps:
@@ -121,7 +121,7 @@ jobs:
 
   teamgram-host:
     name: Teamgram host simulator build
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 240
     needs: avatar-module
 
